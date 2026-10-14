@@ -1,7 +1,7 @@
-import { createAlertCollectionHandlers, unconfiguredStockResolver } from "@/server/alerts/http";
+import { createAlertCollectionHandlers } from "@/server/alerts/http";
+import { getMarketClient } from "@/server/market";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Root wires the actual market resolver after the independent stage-3 adapter is integrated.
-export const { GET, POST } = createAlertCollectionHandlers(unconfiguredStockResolver);
+export const { GET, POST } = createAlertCollectionHandlers(async (symbol) => { await getMarketClient().company(symbol); });

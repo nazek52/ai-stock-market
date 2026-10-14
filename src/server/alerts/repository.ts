@@ -1,5 +1,5 @@
 import "server-only";
-import { ObjectId, type ClientSession } from "mongodb";
+import { ObjectId, MongoServerError, type ClientSession } from "mongodb";
 import {
   priceAlertCreateSchema, priceAlertUpdateSchema,
   type PriceAlertCreate, type PriceAlertRule, type PriceAlertUpdate, type StockQuote,
@@ -88,7 +88,8 @@ export async function createRule(userId: string, input: PriceAlertCreate, resolv
   await resolveStock(validated.symbol);
   const { rules, owners } = await collections();
   // The per-owner document serializes concurrent creates; countDocuments alone permits write skew.
-  await owners.updateOne({ _id: userId }, { $setOnInsert: { ruleCount: 0 } }, { upsert: true });
+  try { await owners.updateOne({ _id: userId }, { $setOnInsert: { ruleCount: 0 } }, { upsert: true }); }
+  catch (error) { if (!(error instanceof MongoServerError && error.code === 11000)) throw error; }
   const now = new Date();
   const document: AlertRuleDocument = {
     _id: new ObjectId(), userId, ...validated, status: "active", version: 1, evaluationRevision: 0,

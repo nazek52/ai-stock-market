@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { MongoMemoryReplSet } from "mongodb-memory-server";
 import type { PriceAlertCreate, StockQuote } from "@/contracts";
 import { POST as authPost } from "@/app/api/auth/[...all]/route";
+import { POST as alertPost } from "@/app/api/alerts/route";
 import { createAlertCollectionHandlers, DELETE, PATCH } from "@/server/alerts/http";
 import {
   createRule, deleteRule, isEventDeliverable, listActiveRules, listPendingEvents, listRules,
@@ -55,6 +56,7 @@ describe("P7.2–P7.4 alert CRUD and durable crossing outbox", () => {
     process.env.MONGODB_DATABASE = "alerts_integration";
     process.env.BETTER_AUTH_URL = origin;
     process.env.BETTER_AUTH_SECRET = "test-only-secret-with-at-least-32-characters";
+    process.env.MARKET_DATA_MODE = "fixture";
     const a = await register("alerts-a@example.test");
     const b = await register("alerts-b@example.test");
     userA = a.userId; cookieA = a.cookie; userB = b.userId; cookieB = b.cookie;
@@ -83,6 +85,13 @@ describe("P7.2–P7.4 alert CRUD and durable crossing outbox", () => {
     expect((await PATCH(request("/api/alerts/not-an-id", "PATCH", { threshold: 1 }, cookieA), context("not-an-id"))).status).toBe(404);
     expect((await DELETE(request(`/api/alerts/${created.id}`, "DELETE", undefined, cookieA), context(created.id))).status).toBe(200);
     expect((await listRules(userA))).toEqual([]);
+  });
+
+  it("connects the public route to actual server market validation", async () => {
+    expect((await alertPost(request("/api/alerts", "POST", { ...input, symbol: "ZZZZZ" }, cookieA))).status).toBe(404);
+    const response = await alertPost(request("/api/alerts", "POST", { ...input, symbol: " msft " }, cookieA));
+    expect(response.status).toBe(201);
+    expect((await response.json()).data.symbol).toBe("MSFT");
   });
 
   it("enforces 50 rules per owner across concurrent creates and releases capacity on delete", async () => {
