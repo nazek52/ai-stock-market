@@ -20,3 +20,6 @@ jobs:
       - run: npm ci
       - run: npm audit --omit=dev --audit-level=high
       - run: npm run check
+      - run: npm run test:integration
+        env:
+          MONGOMS_VERSION: 8.0.16

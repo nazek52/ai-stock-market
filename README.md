@@ -17,6 +17,8 @@ npm run dev
 
 `setup:local` создаёт игнорируемый `.env.local` со случайным секретом и не перезаписывает существующий файл. `services:up` требует запущенный Docker Desktop: MongoDB replica set доступен только на `127.0.0.1:27017`, тестовая почта Mailpit - на `http://127.0.0.1:8025`. Остановка: `npm run services:down` (данные MongoDB сохраняются в Docker volume).
 
+Если Docker недоступен, в отдельных терминалах запустить `npm run services:mongo` и `npm run services:mail` (Windows, PowerShell 7). Оба процесса слушают только localhost; MongoDB сохраняет данные между запусками. Подробности и проверенные способы остановки: [локальные сервисы](docs/local-services.md).
+
 После запуска приложение: `http://localhost:3000`; liveness: `/api/health`. В настройках по умолчанию данные синтетические, реальная отправка и расписания выключены. Для приёма писем в Mailpit выбрать `EMAIL_TRANSPORT=smtp`; значения ключей внешних сервисов добавляются только в `.env.local`.
 
 ## Проверки

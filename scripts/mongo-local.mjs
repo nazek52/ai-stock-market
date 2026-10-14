@@ -16,7 +16,6 @@ async function assertPortAvailable() {
     probe.listen({ host, port, exclusive: true }, () => probe.close(resolve));
   });
 }
-
 const replicaSet = new MongoMemoryReplSet({
   binary: { version: "8.0.16", downloadDir },
   instanceOpts: [{ port, dbPath, storageEngine: "wiredTiger" }],
