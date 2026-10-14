@@ -3,10 +3,12 @@ import { MongoMemoryReplSet } from "mongodb-memory-server";
 import { closeDatabase, getDatabase } from "@/server/db";
 import { sendTransactionalEmail, sendAuthenticationEmail } from "@/server/notifications/send";
 import { deliveryCollection, markAbandonedDeliveriesUncertain } from "@/server/notifications/repository";
+import * as notificationRepository from "@/server/notifications/repository";
 import { processDigest, dispatchDueDigests, type DigestEvent } from "@/server/digest/processor";
 import { createUnsubscribeToken } from "@/server/digest/unsubscribe";
 import { GET as unsubscribeGet, POST as unsubscribePost } from "@/app/api/email/unsubscribe/route";
 import type { NewsProvider } from "@/server/digest/news";
+import { acknowledgeWelcomeEvents, collectWelcomeEvents, enqueueVerifiedUser, reconcileVerifiedWelcomeUsers } from "@/server/notifications/welcome-outbox";
 
 let replica: MongoMemoryReplSet;
 const now = new Date("2026-10-14T09:00:00Z");
@@ -31,7 +33,7 @@ describe("durable delivery and isolated digest runs", () => {
   });
   beforeEach(async () => {
     const db = await getDatabase();
-    await Promise.all(["user", "digest_preferences", "notification_deliveries", "watchlist_items"].map((name) => db.collection(name).deleteMany({})));
+    await Promise.all(["user", "digest_preferences", "notification_deliveries", "watchlist_items", "welcome_outbox"].map((name) => db.collection(name).deleteMany({})));
     await db.collection<{ _id: string; email: string; emailVerified: boolean }>("user").insertMany([
       { _id: "user-one", email: "one@example.test", emailVerified: true },
       { _id: "user-two", email: "two@example.test", emailVerified: true },
@@ -143,5 +145,71 @@ describe("durable delivery and isolated digest runs", () => {
       expect(send).not.toHaveBeenCalled();
       expect(await (await deliveryCollection()).countDocuments()).toBe(0);
     } finally { vi.stubEnv("NODE_ENV", "test"); }
+  });
+
+  it("durably queues welcome once without network and retains intent until dispatch acknowledgement", async () => {
+    await Promise.all(Array.from({ length: 20 }, () => enqueueVerifiedUser("user-one")));
+    const first = await collectWelcomeEvents();
+    expect(first).toHaveLength(1);
+    expect(first[0]).toMatchObject({ name: "stock/user.verified", data: { userId: "user-one" } });
+    // Simulate event service unavailability: no acknowledgement means it remains pending.
+    expect(await collectWelcomeEvents()).toEqual(first);
+    await acknowledgeWelcomeEvents(first);
+    expect(await collectWelcomeEvents()).toEqual([]);
+    await enqueueVerifiedUser("user-one");
+    expect(await collectWelcomeEvents()).toEqual([]);
+    expect(await (await getDatabase()).collection("welcome_outbox").countDocuments()).toBe(1);
+    await expect(enqueueVerifiedUser("unverified")).rejects.toThrow("verified");
+  });
+
+  it("renders maximum-length valid news headlines without exceeding email label limits", async () => {
+    const longNews: NewsProvider = async () => ({ source: "fixture", articles: [{
+      id: "long-article", headline: "h".repeat(500), summary: "Synthetic only", url: "https://example.com/long-news", source: "s".repeat(100), publishedAt: now.toISOString(), relatedSymbols: [],
+    }] });
+    const result = await processDigest("user-one", "2026-10-14", { now, newsProvider: longNews, previewOnly: true });
+    expect(result).toMatchObject({ status: "skipped", reason: "preview" });
+    expect(result.preview?.html).toContain(`${"s".repeat(100)}: ${"h".repeat(95)}...`);
+    expect(result.preview?.html).not.toContain(`: ${"h".repeat(500)}</a>`);
+  });
+
+  it("releases a claimed delivery after a known pre-SMTP lookup failure and retries once", async () => {
+    const lookup = vi.spyOn(notificationRepository, "getRecipient").mockRejectedValueOnce(new Error("private-db-location-must-not-leak"));
+    const send = vi.fn(async () => {});
+    const request = { userId: "user-one", type: "welcome" as const, idempotencyKey: "welcome:lookup-retry", payload };
+    try {
+      await expect(sendTransactionalEmail(request, { send })).rejects.toThrow("Email preparation is temporarily unavailable");
+      expect(send).not.toHaveBeenCalled();
+      expect((await (await deliveryCollection()).findOne({ eventKey: "delivery:welcome:lookup-retry" }))?.status).toBe("pending");
+    } finally { lookup.mockRestore(); }
+    expect((await sendTransactionalEmail(request, { send })).status).toBe("sent");
+    expect((await sendTransactionalEmail(request, { send })).status).toBe("sent");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("supports trusted precommit auth recipients without exposing a generic or HTTP recipient override", async () => {
+    const send = vi.fn(async () => {});
+    const input = {
+      userId: "signup-not-committed", type: "verify_email" as const, url: "http://localhost:3000/api/auth/verify-email?token=synthetic", tokenId: "synthetic-precommit",
+      user: { id: "signup-not-committed", email: "new-signup@example.test", emailVerified: false, name: "Synthetic signup", createdAt: now },
+    };
+    expect((await sendAuthenticationEmail(input, { send })).status).toBe("sent");
+    expect(send.mock.calls).toHaveLength(1);
+    await expect(sendAuthenticationEmail({ ...input, userId: "different-user" }, { send })).rejects.toThrow("match");
+    await expect(sendAuthenticationEmail({ ...input, user: { ...input.user, email: "invalid" } }, { send })).rejects.toThrow();
+    expect((await sendTransactionalEmail({ userId: "missing-generic-recipient", type: "welcome", idempotencyKey: "welcome:missing", payload }, { send })).reason).toBe("recipient_unavailable");
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it("reconciles missing verified-user welcome intent beyond the first hundred existing users", async () => {
+    const db = await getDatabase();
+    const existing = Array.from({ length: 101 }, (_, index) => ({ _id: `existing-${index}`, email: `existing-${index}@example.test`, emailVerified: true }));
+    await db.collection<{ _id: string; email: string; emailVerified: boolean }>("user").insertMany(existing);
+    await Promise.all(existing.map((user) => enqueueVerifiedUser(user._id)));
+    await db.collection<{ _id: string; email: string; emailVerified: boolean }>("user").insertOne({ _id: "missing-after-existing", email: "missing-after-existing@example.test", emailVerified: true });
+    expect(await reconcileVerifiedWelcomeUsers()).toEqual({ queued: 3 });
+    expect(await db.collection("welcome_outbox").findOne({ userId: "missing-after-existing" })).toMatchObject({ status: "pending" });
+    expect(await reconcileVerifiedWelcomeUsers()).toEqual({ queued: 0 });
+    const indexes = await db.collection("welcome_outbox").indexes();
+    expect(indexes.find((index) => index.name === "welcome_owner_unique")?.unique).toBe(true);
   });
 });

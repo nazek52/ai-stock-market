@@ -62,7 +62,10 @@ export async function processDigest(userId: string, localDate: string, dependenc
       fixture: batch.source === "fixture" || generated.fixture,
       paragraphs: summary.items.length ? summary.items.map((item) => item.text) : ["За последние 24 часа подходящих новостей нет."],
       links: [
-        ...articles.filter((article) => linkedIds.has(article.id)).map((article) => ({ label: `${article.source}: ${article.headline}`, url: article.url })),
+        ...articles.filter((article) => linkedIds.has(article.id)).map((article) => {
+          const label = `${article.source}: ${article.headline}`;
+          return { label: label.length > 200 ? `${label.slice(0, 197)}...` : label, url: article.url };
+        }),
         { label: "Отключить ежедневную сводку", url: unsubscribeUrl(userId, now) },
       ],
     },
@@ -105,8 +108,8 @@ export async function dispatchDueDigests(now: Date, dispatch: (events: DigestEve
 }
 
 /** Useful for a single-account local run; no global batch mutation or another user's ID. */
-export async function previewOwnDigest(userId: string) {
+export async function previewOwnDigest(userId: string, newsProvider: NewsProvider = defaultNewsProvider) {
   const preference = await (await getDatabase()).collection<DigestPreferenceDocument>("digest_preferences").findOne({ userId });
   if (!preference) return { status: "skipped" as const, reason: "preferences_missing" };
-  return processDigest(userId, localClock(new Date(), preference.timezone).date, { previewOnly: true });
+  return processDigest(userId, localClock(new Date(), preference.timezone).date, { previewOnly: true, newsProvider });
 }

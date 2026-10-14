@@ -12,6 +12,9 @@ import { emailPayloadSchema, type DeliveryResult, type NotificationRequest, type
 export interface MailTransport {
   send(input: RenderedEmail & { to: string; from: string; messageId: string }): Promise<void>;
 }
+// BetterAuth's callback user also includes name/timestamps; retain only these fields.
+const authRecipientSchema = z.object({ id: z.string().min(1).max(128), email: z.email(), emailVerified: z.boolean() });
+type TrustedAuthRecipient = z.infer<typeof authRecipientSchema>;
 
 function smtpTransport(): MailTransport {
   const env = getServerEnvironment();
@@ -28,8 +31,7 @@ function smtpTransport(): MailTransport {
   } };
 }
 
-/** All callers must supply a stable key derived from a persisted event, never a retry UUID. */
-export async function sendTransactionalEmail(request: NotificationRequest, transport?: MailTransport): Promise<DeliveryResult> {
+async function deliverTransactionalEmail(request: NotificationRequest, transport?: MailTransport, trustedAuthRecipient?: TrustedAuthRecipient): Promise<DeliveryResult> {
   z.string().min(1).max(400).regex(/^[A-Za-z0-9:_.@-]+$/).parse(request.idempotencyKey);
   z.string().min(1).max(128).parse(request.userId);
   const payload = emailPayloadSchema.parse(request.payload);
@@ -63,7 +65,13 @@ export async function sendTransactionalEmail(request: NotificationRequest, trans
   try {
     const db = await getDatabase();
     // Read recipient and consent after claiming, immediately before the side effect.
-    const recipient = await getRecipient(request.userId, db);
+    let recipient = await getRecipient(request.userId, db);
+    // BetterAuth may send verification inside the signup transaction, before its
+    // newly created user is visible to this separate DB read. Only its internal
+    // callback can provide this validated fallback; HTTP requests never can.
+    if (!recipient && trustedAuthRecipient && ["verify_email", "reset_password"].includes(request.type)) {
+      recipient = { _id: trustedAuthRecipient.id, email: trustedAuthRecipient.email, emailVerified: trustedAuthRecipient.emailVerified };
+    }
     let reason: string | undefined;
     if (!recipient || !z.email().safeParse(recipient.email).success) reason = "recipient_unavailable";
     else if (!["verify_email", "reset_password"].includes(request.type) && recipient.emailVerified !== true) reason = "email_unverified";
@@ -85,20 +93,44 @@ export async function sendTransactionalEmail(request: NotificationRequest, trans
     if (!acknowledged.matchedCount) return { status: "uncertain", reason: "delivery_state_changed" };
     return { status: "sent" };
   } catch {
+    if (!sendingStarted) {
+      // We know no SMTP side effect occurred. Release the claim for a safe retry.
+      // If MongoDB is unavailable, leave sending orphaned for manual recovery.
+      try {
+        await deliveries.updateOne({ eventKey, status: "sending" }, {
+          $set: { status: "pending", reason: "pre_send_failure", updatedAt: new Date() }, $unset: { claimedAt: "" },
+        });
+      } catch { /* Never expose provider/DB error text or force-reset a possibly active send. */ }
+      throw new AppError("SERVICE_UNAVAILABLE", "Email preparation is temporarily unavailable", 503);
+    }
     // SMTP may have accepted the email before a connection/DB write failed.
     // Do not turn this back into pending: a retry could send the same mail twice.
-    const reason = sendingStarted ? "send_outcome_unknown" : "pre_send_failure";
-    await deliveries.updateOne({ eventKey, status: "sending" }, { $set: { status: "uncertain", reason, updatedAt: new Date() } });
+    const reason = "send_outcome_unknown";
+    try {
+      await deliveries.updateOne({ eventKey, status: "sending" }, { $set: { status: "uncertain", reason, updatedAt: new Date() } });
+    } catch {
+      throw new AppError("SERVICE_UNAVAILABLE", "Email outcome requires recovery after a storage failure", 503);
+    }
     console.error("notification.delivery.failed", { type: request.type, reason });
     return { status: "uncertain", reason };
   }
 }
 
-export async function sendAuthenticationEmail(input: { userId: string; url: string; tokenId: string; type: "verify_email" | "reset_password" }) {
-  return sendTransactionalEmail({
+/** All callers must supply a stable key derived from a persisted event, never a retry UUID. */
+export async function sendTransactionalEmail(request: NotificationRequest, transport?: MailTransport): Promise<DeliveryResult> {
+  return deliverTransactionalEmail(request, transport);
+}
+
+/** `user` is accepted only from the trusted BetterAuth callback, never from an HTTP body. */
+export async function sendAuthenticationEmail(input: {
+  userId: string; url: string; tokenId: string; type: "verify_email" | "reset_password"; user?: TrustedAuthRecipient;
+}, transport?: MailTransport) {
+  const user = input.user ? authRecipientSchema.parse(input.user) : undefined;
+  if (user && user.id !== input.userId) throw new AppError("INVALID_INPUT", "Authentication recipient must match the callback user", 400);
+  return deliverTransactionalEmail({
     userId: input.userId, type: input.type, idempotencyKey: `${input.type}:${input.userId}:${createHash("sha256").update(input.tokenId).digest("hex")}`,
     payload: { subject: input.type === "verify_email" ? "Подтверждение адреса" : "Восстановление доступа", title: "AI Stock Market",
       paragraphs: ["Для продолжения откройте ссылку. Если вы не запрашивали это действие, проигнорируйте письмо."],
       links: [{ label: "Продолжить", url: input.url }] },
-  });
+  }, transport, user);
 }
