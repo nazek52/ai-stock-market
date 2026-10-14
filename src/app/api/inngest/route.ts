@@ -4,9 +4,10 @@ import { getServerEnvironment } from "@/server/config";
 import { inngest } from "@/server/inngest/client";
 import { createDigestFunctions } from "@/server/inngest/functions";
 import { marketNewsProvider } from "@/server/digest/market-news";
+import { createAlertFunctions } from "@/server/inngest/alerts";
 
 export const runtime = "nodejs";
-const functions = createDigestFunctions(marketNewsProvider);
+const functions = [...createDigestFunctions(marketNewsProvider), ...createAlertFunctions()];
 
 async function handler(method: "GET" | "POST" | "PUT", request: NextRequest, context: unknown) {
   const env = getServerEnvironment();
