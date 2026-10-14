@@ -20,7 +20,10 @@
     "services:up": "docker compose up -d --wait",
     "services:mongo": "node scripts/mongo-local.mjs",
     "services:mail": "pwsh -NoProfile -File scripts/mailpit-local.ps1",
-    "services:down": "docker compose down"
+    "services:down": "docker compose --profile jobs down",
+    "services:jobs": "docker compose --profile jobs up -d inngest",
+    "services:jobs:stop": "docker compose --profile jobs stop inngest",
+    "production:check": "node --env-file-if-exists=.env.production.local scripts/validate-production.mjs"
   },
   "dependencies": {
     "@better-auth/mongo-adapter": "1.7.7",

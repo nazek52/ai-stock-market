@@ -21,5 +21,13 @@ services:
     ports:
       - "127.0.0.1:1025:1025"
       - "127.0.0.1:8025:8025"
+  inngest:
+    image: inngest/inngest:v1.46.0@sha256:9c4a2413bdbfa31a94ff54c32ae2dcc6613dbee84bc76db6cf6644d19e357e3e
+    profiles: ["jobs"]
+    command: ["inngest", "dev", "--host", "0.0.0.0", "--no-discovery", "-u", "http://host.docker.internal:${INNGEST_APP_PORT:-3000}/api/inngest"]
+    ports:
+      - "127.0.0.1:8288:8288"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 volumes:
   mongo-data:

@@ -2,7 +2,7 @@ import "server-only";
 import type { StockCompany, StockNewsItem, StockQuote } from "@/contracts";
 import { AppError } from "../errors";
 
-const symbols = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "BRK.B"];
+const symbols = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "BRK.B", "KO"];
 export function fixtureCompanies(): StockCompany[] {
   return symbols.map((symbol) => ({
     symbol, companyName: `Synthetic ${symbol} Company`, currency: "USD", exchange: "SYNTHETIC US MARKET",
