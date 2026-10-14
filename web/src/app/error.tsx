@@ -1,0 +1,2 @@
+"use client";
+export default function Error({ reset }: { error: Error; reset: () => void }) { return <main className="content"><section className="card empty-page"><span className="eyebrow">ОШИБКА</span><h1>Не удалось открыть страницу</h1><p>Попробуйте ещё раз. Если ошибка повторится, вернитесь позже.</p><button type="button" onClick={reset} className="button button-primary">Повторить</button></section></main>; }
