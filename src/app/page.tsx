@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
-import { MarketEmptyState } from "@/components/market/market-empty-state";
+import { DashboardNews, DashboardQuotes } from "@/components/market/dashboard-data";
+import { DashboardWatchlist } from "@/components/market/dashboard-watchlist";
 import {
   TradingViewMarketOverview,
   TradingViewStockHeatmap,
@@ -54,11 +55,7 @@ export default function Home() {
               <CardDescription>Собственные рыночные данные приложения</CardDescription>
             </CardHeader>
             <CardContent>
-              <MarketEmptyState
-                kind="unavailable"
-                title="Котировки пока недоступны"
-                description="Серверный источник Finnhub ещё не подключён. Когда данные появятся, здесь будут указаны их источник и время последнего обновления."
-              />
+              <DashboardQuotes />
             </CardContent>
           </Card>
         </section>
@@ -71,12 +68,7 @@ export default function Home() {
                 <CardDescription>Личные акции для отслеживания</CardDescription>
               </CardHeader>
               <CardContent>
-                <MarketEmptyState
-                  kind="unavailable"
-                  title="Список пока недоступен"
-                  description="Список появится после подключения учётных записей и защищённого хранения."
-                  action={{ href: "/watchlist", label: "Открыть раздел" }}
-                />
+                <DashboardWatchlist />
               </CardContent>
             </Card>
           </section>
@@ -87,11 +79,7 @@ export default function Home() {
                 <CardDescription>Публикации из серверного источника</CardDescription>
               </CardHeader>
               <CardContent>
-                <MarketEmptyState
-                  kind="unavailable"
-                  title="Новости пока недоступны"
-                  description="Когда источник новостей будет подключён, мы покажем публикации со ссылками на первоисточники и временем обновления."
-                />
+                <DashboardNews />
               </CardContent>
             </Card>
           </section>
