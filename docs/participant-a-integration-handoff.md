@@ -11,7 +11,7 @@
 ## Проверки
 
 - `npm ci` и `npm run setup:local` из корня прошли; локальный `.env.local` создан со случайным секретом, внешняя доставка выключена.
-- `npm run lint`, `npm run typecheck`, `npm test` (76 тестов), `npm run build` прошли. Запущенный production server вернул HTTP 200 для `/`, `/search`, `/stocks/AAPL`, `/stocks/ZZZZINVALID`, `/login`, `/settings`, `/api/health`.
+- После подключения B4 и экранов A `npm run check` прошёл: ESLint, TypeScript, 82 unit-теста и production build. Запущенный production server вернул HTTP 200 для `/`, `/search`, `/stocks/AAPL`, `/login`, `/register`, `/settings`, `/api/health`. Для синтаксически неверного `/stocks/ZZZZINVALID` интерфейс показал страницу 404, хотя HTTP-статус ответа при потоковой отдаче Next.js был 200; проверку настоящего неизвестного тикера через рыночный API без MongoDB провести нельзя.
 - `npm run test:integration` не дошёл до тестов: прокси ответил 403 на загрузку бинарника MongoDB 8.0.16 с `fastdl.mongodb.org`. Домен добавлен в черновик облачной конфигурации; требуется публикация настроек и повторная проверка доступа.
 
 ## Оставшиеся контракты
