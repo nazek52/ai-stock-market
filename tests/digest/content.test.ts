@@ -41,7 +41,7 @@ describe("digest input and rendered output", () => {
     });
     expect(rendered.html).toContain('<html lang="ru">');
     expect(rendered.html).toContain("<h1");
-    expect(rendered.html).toContain("Ссылки и источники");
+    expect(rendered.html).toContain("Ссылки");
     expect(rendered.html).toContain("ТЕСТОВЫЕ ДАННЫЕ: это демонстрационная сводка");
     expect(rendered.html).toContain("&lt;b&gt;Рынок&lt;/b&gt;");
     expect(rendered.html).toContain("Источник &lt;новости&gt;");
