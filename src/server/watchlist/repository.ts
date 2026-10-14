@@ -27,6 +27,12 @@ export async function listWatchlistItems(userId: string): Promise<WatchlistItem[
   return (await items.find({ userId }).sort({ createdAt: 1, _id: 1 }).limit(WATCHLIST_LIMIT).toArray()).map(dto);
 }
 
+export async function findWatchlistItem(userId: string, symbol: string): Promise<WatchlistItem | null> {
+  const { items } = await collections();
+  const existing = await items.findOne({ userId, symbol });
+  return existing ? dto(existing) : null;
+}
+
 /** company must come from the server market adapter, never the request body. */
 export async function addWatchlistItem(userId: string, company: StockCompany): Promise<{ item: WatchlistItem; created: boolean }> {
   const { items, counters } = await collections();
