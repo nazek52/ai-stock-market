@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MarketEmptyState } from "@/components/market/market-empty-state";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ApiError, ApiResult, StockCompany, StockNewsItem, StockQuote } from "@/contracts";
+import type { ApiError, ApiResult, StockCompany, StockNewsItem, StockQuote, WatchlistItem } from "@/contracts";
 
 type ReadResult<T> = { data: T; fixture: boolean } | { error: ApiError; fixture: boolean };
 type Detail = {
@@ -13,6 +13,7 @@ type Detail = {
   quote: ReadResult<StockQuote>;
   news: ReadResult<StockNewsItem[]>;
 };
+type WatchlistState = { status: "loading" | "ready" | "error" | "unauthenticated"; included: boolean; message?: string };
 
 const dateTime = new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
 const formatTime = (value: string) => `${dateTime.format(new Date(value))} UTC`;
@@ -45,7 +46,13 @@ function safeUrl(value: string) {
 }
 
 export function StockDetail({ symbol }: { symbol: string }) {
+  return <StockDetailForSymbol key={symbol} symbol={symbol} />;
+}
+
+function StockDetailForSymbol({ symbol }: { symbol: string }) {
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [watchlist, setWatchlist] = useState<WatchlistState>({ status: "loading", included: false });
+  const [watchlistPending, setWatchlistPending] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -55,6 +62,46 @@ export function StockDetail({ symbol }: { symbol: string }) {
     ]).then(([company, quote, news]) => { if (!controller.signal.aborted) setDetail({ company, quote, news }); });
     return () => controller.abort();
   }, [symbol]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/watchlist", { signal: controller.signal, cache: "no-store" })
+      .then(async (response) => await response.json() as ApiResult<WatchlistItem[]>)
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        if (result.ok) setWatchlist({ status: "ready", included: result.data.some((item) => item.symbol === symbol) });
+        else setWatchlist({ status: result.error.code === "UNAUTHENTICATED" ? "unauthenticated" : "error", included: false, message: "Не удалось загрузить список. Обновите страницу и попробуйте снова." });
+      })
+      .catch(() => { if (!controller.signal.aborted) setWatchlist({ status: "error", included: false, message: "Не удалось загрузить список. Обновите страницу и попробуйте снова." }); });
+    return () => controller.abort();
+  }, [symbol]);
+
+  async function changeWatchlist() {
+    if (watchlist.status !== "ready" || watchlistPending) return;
+    setWatchlistPending(true);
+    setWatchlist((current) => ({ ...current, message: undefined }));
+    try {
+      const response = await fetch(watchlist.included ? `/api/watchlist/${encodeURIComponent(symbol)}` : "/api/watchlist", {
+        method: watchlist.included ? "DELETE" : "POST",
+        ...(watchlist.included ? {} : { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol }) }),
+      });
+      if (watchlist.included) {
+        const result = await response.json() as ApiResult<{ deleted: boolean }>;
+        if (result.ok) setWatchlist({ status: "ready", included: false });
+        else if (result.error.code === "UNAUTHENTICATED") setWatchlist((current) => ({ ...current, status: "unauthenticated", message: "Сессия истекла. Войдите снова." }));
+        else setWatchlist((current) => ({ ...current, message: "Не удалось удалить акцию. Попробуйте снова." }));
+      } else {
+        const result = await response.json() as ApiResult<WatchlistItem>;
+        if (result.ok) setWatchlist({ status: "ready", included: true });
+        else if (result.error.code === "UNAUTHENTICATED") setWatchlist((current) => ({ ...current, status: "unauthenticated", message: "Сессия истекла. Войдите снова." }));
+        else setWatchlist((current) => ({ ...current, message: result.error.code === "CONFLICT" ? "Список заполнен: можно сохранить не более 50 акций." : "Не удалось добавить акцию. Попробуйте снова." }));
+      }
+    } catch {
+      setWatchlist((current) => ({ ...current, message: "Нет связи с сервером. Попробуйте снова." }));
+    } finally {
+      setWatchlistPending(false);
+    }
+  }
 
   const company = detail?.company && "data" in detail.company ? detail.company.data : null;
   const quote = detail?.quote && "data" in detail.quote ? detail.quote.data : null;
@@ -113,7 +160,13 @@ export function StockDetail({ symbol }: { symbol: string }) {
             </Card>
           </section>
         </div>
-        <section className="mt-5" aria-labelledby="watchlist-heading"><Card><CardHeader><CardTitle><h2 id="watchlist-heading" className="m-0 text-base">Мой список</h2></CardTitle></CardHeader><CardContent><Link className="button button-outline" href="/watchlist">Открыть раздел списка</Link></CardContent></Card></section>
+        <section className="mt-5" aria-labelledby="watchlist-heading"><Card><CardHeader><CardTitle><h2 id="watchlist-heading" className="m-0 text-base">Мой список</h2></CardTitle></CardHeader><CardContent className="flex flex-wrap items-center gap-3">
+          {watchlist.status === "ready" && <button type="button" className="button button-primary" disabled={watchlistPending} onClick={changeWatchlist}>{watchlistPending ? "Сохраняем…" : watchlist.included ? "Убрать из списка" : "Добавить в список"}</button>}
+          {watchlist.status === "loading" && <p role="status" className="text-sm">Проверяем список…</p>}
+          {watchlist.status === "unauthenticated" && <Link className="button button-primary" href="/login">Войти, чтобы управлять списком</Link>}
+          <Link className="button button-outline" href="/watchlist">Открыть раздел списка</Link>
+          {watchlist.message && <p role="alert" className="w-full text-sm text-destructive">{watchlist.message}</p>}
+        </CardContent></Card></section>
       </>}
     </AppShell>
   );
