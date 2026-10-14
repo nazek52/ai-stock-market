@@ -31,6 +31,27 @@ describe("digest input and rendered output", () => {
     expect(() => renderEmail({ subject: "News\r\nBcc: injected", title: "News", paragraphs: [], links: [] })).toThrow();
     expect(() => renderEmail({ subject: "News", title: "News", paragraphs: [], links: [{ label: "bad", url: "javascript:alert(1)" }] })).toThrow();
   });
+  it("renders a readable Russian digest in HTML and plain text with safe source and settings links", () => {
+    const rendered = renderEmail({
+      subject: "Новости рынка", title: "Сводка за 14 октября", paragraphs: ["<b>Рынок</b> и новости"], fixture: true,
+      links: [
+        { label: "Источник <новости>", url: "https://example.com/news?a=1&b=2" },
+        { label: "Настройки ежедневной сводки", url: "https://example.com/settings" },
+      ],
+    });
+    expect(rendered.html).toContain('<html lang="ru">');
+    expect(rendered.html).toContain("<h1");
+    expect(rendered.html).toContain("Ссылки и источники");
+    expect(rendered.html).toContain("ТЕСТОВЫЕ ДАННЫЕ: это демонстрационная сводка");
+    expect(rendered.html).toContain("&lt;b&gt;Рынок&lt;/b&gt;");
+    expect(rendered.html).toContain("Источник &lt;новости&gt;");
+    expect(rendered.html).toContain('href="https://example.com/news?a=1&amp;b=2"');
+    expect(rendered.html).toContain('href="https://example.com/settings"');
+    expect(rendered.text).toContain("Настройки ежедневной сводки: https://example.com/settings");
+    expect(rendered.text).toContain("Источник <новости>: https://example.com/news?a=1&b=2");
+    expect(rendered.text).toContain("ТЕСТОВЫЕ ДАННЫЕ");
+    expect(rendered.text).not.toContain("<h1");
+  });
   it("binds unsubscribe tokens to scope, signature and expiry without storing an email", () => {
     vi.stubEnv("BETTER_AUTH_SECRET", "test-secret-long-enough-for-signing-tokens");
     const token = createUnsubscribeToken("user-one", now);
