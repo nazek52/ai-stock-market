@@ -117,6 +117,15 @@ export interface StockSearchResult {
   instrumentType: "equity";
 }
 
+export interface StockCompany extends StockSearchResult {
+  currency: "USD";
+  industry: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  marketCapitalization: number | null;
+  source: "finnhub" | "fixture";
+}
+
 export interface StockNewsItem {
   id: string;
   headline: string;
