@@ -3,6 +3,7 @@ import { z } from "zod";
 import { stockSearchQuerySchema, symbolSchema, type StockCompany, type StockNewsItem, type StockQuote, type StockSearchResult } from "@/contracts";
 import { getServerEnvironment } from "../config";
 import { AppError } from "../errors";
+import { acquireMarketPermit } from "../rate-limit";
 import { MarketCache } from "./cache";
 import { fixtureCompanies, fixtureCompany, fixtureNews, fixtureQuote } from "./fixtures";
 import { marketInvalid, normalizeCompany, normalizeNews, normalizeQuote } from "./normalization";
@@ -118,7 +119,8 @@ export function getMarketClient(): MarketClient {
     const env = getServerEnvironment();
     instance = createMarketClient({
       mode: env.MARKET_DATA_MODE, apiKey: env.FINNHUB_API_KEY, cacheSeconds: env.MARKET_CACHE_SECONDS,
-      requestsPerMinute: env.FINNHUB_REQUESTS_PER_MINUTE, consumeSharedBudget: sharedBudget,
+      requestsPerMinute: env.FINNHUB_REQUESTS_PER_MINUTE,
+      consumeSharedBudget: sharedBudget ?? (() => acquireMarketPermit(env.FINNHUB_REQUESTS_PER_MINUTE)),
     });
   }
   return instance;

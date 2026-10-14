@@ -13,7 +13,7 @@ const environmentSchema = z.object({
   MONGODB_DATABASE: z.string().regex(/^[a-zA-Z0-9_-]{1,63}$/).default("ai_stock_market"),
   MARKET_DATA_MODE: z.enum(["fixture", "finnhub"]).default("fixture"),
   FINNHUB_API_KEY: z.string().optional(),
-  FINNHUB_REQUESTS_PER_MINUTE: integer(1, 600, 30),
+  FINNHUB_REQUESTS_PER_MINUTE: integer(1, 30, 30),
   MARKET_CACHE_SECONDS: integer(1, 3600, 60),
   MARKET_STALE_SECONDS: integer(60, 86400, 900),
   INNGEST_EVENT_KEY: z.string().optional(),
