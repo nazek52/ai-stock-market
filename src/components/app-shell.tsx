@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SessionActions } from "@/components/auth/session-actions";
 
 const items = [
   { label: "Обзор", href: "/", icon: "▦" },
@@ -20,7 +21,7 @@ export function AppShell({ active, children }: { active: string; children: React
       <p className="sidebar-note">Информационный сервис. Не является инвестиционной рекомендацией.</p>
     </aside>
     <div className="main-column">
-      <header className="topbar"><div className="breadcrumb">Рабочая область <span aria-hidden="true"> / </span> <strong>{active}</strong></div><Link href="/login" className="topbar-badge">Вход · макет</Link></header>
+      <header className="topbar"><div className="breadcrumb">Рабочая область <span aria-hidden="true"> / </span> <strong>{active}</strong></div><SessionActions /></header>
       <main id="main" className="content">{children}</main>
     </div>
   </div>;

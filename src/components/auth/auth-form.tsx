@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
-import { createAuthClient } from "better-auth/react";
+import { authClient } from "@/components/auth/client";
+import { PasswordResetRequest } from "@/components/auth/password-reset-request";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -12,7 +13,6 @@ type Field = "name" | "email" | "password" | "confirmPassword";
 type Errors = Partial<Record<Field, string>>;
 
 const inputClass = "mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive";
-const authClient = createAuthClient();
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -77,6 +77,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         else if (code === "PASSWORD_TOO_SHORT") serverErrors.password = "Пароль должен содержать не менее 12 символов.";
         else if (code === "PASSWORD_TOO_LONG") serverErrors.password = "Пароль должен содержать не более 128 символов.";
         else if (code === "INVALID_EMAIL_OR_PASSWORD" || code === "INVALID_PASSWORD") message = "Неверный адрес электронной почты или пароль.";
+        else if (code === "EMAIL_NOT_VERIFIED") message = "Адрес электронной почты не подтверждён. Проверьте почту, если отправка включена.";
         else if (status === 429) message = "Слишком много попыток. Подождите и попробуйте снова.";
 
         if (Object.keys(serverErrors).length) {
@@ -154,6 +155,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
               <Button type="submit" size="lg" disabled={pending} className="mt-1 w-full">{pending ? "Проверяем данные…" : isRegister ? "Зарегистрироваться" : "Войти"}</Button>
               {notice && <p ref={noticeRef} tabIndex={-1} role="alert" className="rounded-lg border border-border bg-muted p-3 text-sm text-foreground">{notice}</p>}
             </form>
+            {!isRegister && <PasswordResetRequest />}
           </CardContent>
         </Card>
         <p className="text-center text-sm">
