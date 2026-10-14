@@ -3,9 +3,10 @@ import type { NextRequest } from "next/server";
 import { getServerEnvironment } from "@/server/config";
 import { inngest } from "@/server/inngest/client";
 import { createDigestFunctions } from "@/server/inngest/functions";
+import { marketNewsProvider } from "@/server/digest/market-news";
 
 export const runtime = "nodejs";
-const functions = createDigestFunctions();
+const functions = createDigestFunctions(marketNewsProvider);
 
 async function handler(method: "GET" | "POST" | "PUT", request: NextRequest, context: unknown) {
   const env = getServerEnvironment();
