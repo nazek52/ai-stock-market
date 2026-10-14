@@ -73,7 +73,7 @@ function fieldError(field: string) {
   }
 }
 
-export function AlertRules() {
+export function AlertRules({ pollSeconds, scheduleEnabled, marketMode }: { pollSeconds: number; scheduleEnabled: boolean; marketMode: "fixture" | "finnhub" }) {
   const [list, setList] = useState<List>({ state: "loading" });
   const [revision, setRevision] = useState(0);
   const [form, setForm] = useState<Form>(blank);
@@ -215,7 +215,8 @@ export function AlertRules() {
 
   return <div className="grid gap-6">
     <Card><CardContent className="grid gap-2 text-sm text-muted-foreground">
-      <p>Проверка цены выполняется периодически. Частота и задержка зависят от источника данных; до их подтверждения время доставки письма неизвестно.</p>
+      <p>{scheduleEnabled ? `Плановый обход настроен каждые ${pollSeconds / 60} мин.` : "Проверка правил сейчас выключена."} Время письма зависит от свежести котировки, очереди и почтового сервиса; гарантированная задержка не установлена.</p>
+      {marketMode === "fixture" && <p>Котировки в этом окружении синтетические и предназначены только для проверки сценариев.</p>}
       <p>Пауза между письмами ограничивает повторы и не задаёт частоту проверки.</p>
     </CardContent></Card>
     <NoticeBox notice={notice} />
@@ -236,7 +237,7 @@ export function AlertRules() {
         {list.rules.length === 0 && <Card><CardContent><p>Правил пока нет. Создайте первое правило выше.</p></CardContent></Card>}
         <ul className="grid gap-4">{list.rules.map((rule) => <li key={rule.id}><Card>
           <CardHeader><CardTitle><h3 className="m-0 text-base"><Link href={`/stocks/${encodeURIComponent(rule.symbol)}`} className="text-primary underline-offset-4 hover:underline">{rule.symbol}</Link> · {rule.type === "price_above" ? "выше" : "ниже"} {money.format(rule.threshold)}</h3></CardTitle><p className="text-sm text-muted-foreground">{rule.status === "active" ? "Включено" : "Приостановлено"} · повторное письмо не раньше чем через {rule.cooldownMinutes} мин.</p></CardHeader>
-          <CardContent className="grid gap-3"><p className="text-xs text-muted-foreground">Последнее срабатывание: {displayDate(rule.lastTriggeredAt)}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => edit(rule)} disabled={!!pending}>Изменить</Button><Button type="button" variant="outline" onClick={() => void toggle(rule)} disabled={!!pending}>{pending === rule.id ? "Сохраняем…" : rule.status === "active" ? "Приостановить" : "Возобновить"}</Button><Button type="button" variant="destructive" onClick={() => setConfirmDelete(rule.id)} disabled={!!pending}>Удалить</Button></div>
+          <CardContent className="grid gap-3"><p className="text-xs text-muted-foreground">Последний зафиксированный переход порога: {displayDate(rule.lastTriggeredAt)}. Доставка письма этим временем не подтверждается.</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => edit(rule)} disabled={!!pending}>Изменить</Button><Button type="button" variant="outline" onClick={() => void toggle(rule)} disabled={!!pending}>{pending === rule.id ? "Сохраняем…" : rule.status === "active" ? "Приостановить" : "Возобновить"}</Button><Button type="button" variant="destructive" onClick={() => setConfirmDelete(rule.id)} disabled={!!pending}>Удалить</Button></div>
             {confirmDelete === rule.id && <div className="grid gap-2 rounded-lg border border-destructive p-3"><p>Удалить правило для {rule.symbol}? Это действие нельзя отменить.</p><div className="flex gap-2"><Button type="button" variant="destructive" onClick={() => void remove(rule)} disabled={!!pending}>{pending === rule.id ? "Удаляем…" : "Подтвердить удаление"}</Button><Button type="button" variant="outline" onClick={() => setConfirmDelete(null)} disabled={!!pending}>Отмена</Button></div></div>}
           </CardContent>
         </Card></li>)}</ul>
