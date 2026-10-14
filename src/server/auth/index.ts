@@ -1,11 +1,14 @@
 import "server-only";
 import { betterAuth } from "better-auth/minimal";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
-import { getAuthConfig } from "@/server/config";
+import { getAuthConfig, getServerEnvironment } from "@/server/config";
 import { getDatabase, getMongoClient } from "@/server/db";
+import { sendAuthenticationEmail } from "@/server/notifications/send";
+import { enqueueVerifiedUser } from "@/server/notifications/welcome-outbox";
 
 async function createAuth() {
   const config = getAuthConfig();
+  const env = getServerEnvironment();
   const [db, client] = await Promise.all([getDatabase(), getMongoClient()]);
   // MongoDB has no generated migration; indexes enforce invariants even under concurrent requests.
   await Promise.all([
@@ -28,8 +31,23 @@ async function createAuth() {
       enabled: true,
       minPasswordLength: 12,
       maxPasswordLength: 128,
-      // Verification and reset are enabled only when a real mail transport is configured.
-      requireEmailVerification: false,
+      requireEmailVerification: env.NODE_ENV === "production",
+      resetPasswordTokenExpiresIn: 3600,
+      revokeSessionsOnPasswordReset: true,
+      async sendResetPassword({ user, url, token }) {
+        await sendAuthenticationEmail({ userId: user.id, user, url, tokenId: token, type: "reset_password" });
+      },
+    },
+    emailVerification: {
+      sendOnSignUp: env.EMAIL_ENABLED && env.EMAIL_TRANSPORT === "smtp",
+      expiresIn: 3600,
+      async sendVerificationEmail({ user, url, token }) {
+        await sendAuthenticationEmail({ userId: user.id, user, url, tokenId: token, type: "verify_email" });
+      },
+      async afterEmailVerification(user) {
+        // A durable DB event survives a worker outage; verification itself never calls Inngest.
+        await enqueueVerifiedUser(user.id);
+      },
     },
     session: {
       expiresIn: 7 * 24 * 60 * 60,
@@ -44,9 +62,18 @@ async function createAuth() {
       customRules: {
         "/sign-in/email": { window: 60, max: 10 },
         "/sign-up/email": { window: 60, max: 5 },
+        "/request-password-reset": { window: 300, max: 3 },
+        "/reset-password": { window: 300, max: 5 },
+        "/send-verification-email": { window: 300, max: 3 },
+        "/verify-email": { window: 60, max: 10 },
       },
     },
-    advanced: { defaultCookieAttributes: { httpOnly: true, sameSite: "lax" } },
+    advanced: {
+      // Better Auth otherwise skips these checks under NODE_ENV=test; exercise the real boundary.
+      disableOriginCheck: false,
+      disableCSRFCheck: false,
+      defaultCookieAttributes: { httpOnly: true, sameSite: "lax" },
+    },
     // Provider exceptions can include connection credentials. Log metadata only at our boundary.
     logger: { disabled: true },
   });
