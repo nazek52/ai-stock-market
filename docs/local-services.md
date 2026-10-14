@@ -1,5 +1,7 @@
 # Локальные сервисы без внешних аккаунтов
 
+Проверено 2026-10-14: native MongoDB start/stop/persistence, native Mailpit SMTP и API чтения/удаления собственного тестового письма. Docker Engine теперь доступен. Для локальных jobs после запуска приложения: npm run services:jobs; Docker Inngest 1.46.0 публикует только 127.0.0.1:8288 и регистрирует 6 функций /api/inngest. Остановка: npm run services:jobs:stop; общий services:down также включает jobs-profile. Приложение на другом порту: задать INNGEST_APP_PORT в окружении Compose. Проверка выполнена с выключенными EMAIL_ENABLED и schedule-флагами. Документация Inngest: https://www.inngest.com/docs/local-development.
+
 Задача P1.4, участник B. Node.js 24 LTS и зависимости проекта должны быть установлены командой `npm ci`. Внешний аккаунт MongoDB, Docker и API-ключи для этого способа запуска не нужны. Это среда разработки без сетевой аутентификации и резервного копирования; для production она не предназначена.
 
 ## MongoDB без Docker

@@ -21,6 +21,8 @@ npm run dev
 
 После запуска приложение: `http://localhost:3000`; liveness: `/api/health`. В настройках по умолчанию данные синтетические, реальная отправка и расписания выключены. Для приёма писем в Mailpit выбрать `EMAIL_TRANSPORT=smtp`; значения ключей внешних сервисов добавляются только в `.env.local`.
 
+Для локального Inngest после запуска приложения выполнить `npm run services:jobs` (Docker). Интерфейс: `http://127.0.0.1:8288`; остановка только jobs: `npm run services:jobs:stop`. Compose публикует только HTTP-порт на loopback, внутренние gRPC-порты не публикуются. Для приложения на другом порту задать `INNGEST_APP_PORT` в окружении команды Compose. `INNGEST_DEV=1` в локальном env; расписания включать отдельно. Для локального перехвата verification/reset дополнительно требуется `EMAIL_ENABLED=true`; письма останутся в Mailpit.
+
 ## Проверки
 
 ```sh
@@ -28,7 +30,7 @@ npm run check
 npm run test:integration
 ```
 
-`check` запускает lint, TypeScript, unit-тесты и production build. Интеграционные тесты появляются с этапом 2 и поднимают собственный временный MongoDB replica set; Docker им не нужен. Тестовая БД не использует `.env.local` и не должна указывать на реальную БД.
+`check` запускает lint, TypeScript, unit-тесты и production build. Интеграционные тесты поднимают собственный временный MongoDB replica set; Docker им не нужен. Тестовая БД не использует `.env.local` и не должна указывать на реальную БД. `/api/readiness` проверяет доступность writable replica set, в production также проверяет конфигурацию; возвращает только 200/503. `npm run production:check` предназначен для окружения выпуска, а не для стандартного локального запуска.
 
 ## Документы
 
@@ -36,6 +38,7 @@ npm run test:integration
 - [PDF-версия плана](docs/implementation-plan.pdf) - копия для чтения и обсуждения.
 - [Правила работы агентов](AGENTS.md) и [контракты](agents/README.md).
 - [Рабочий контракт B](docs/tasks/participant-b.md), [сервисные решения](docs/service-setup.md) и [проверка зависимостей](docs/dependency-audit.md).
+- [Состояние работ B и порядок объединения](docs/participant-b-progress.md), [подготовка production](docs/production-deployment.md).
 
 При расхождении между Markdown и PDF действующим считается Markdown. Версия плана и журнал изменений указаны в начале основного документа.
 

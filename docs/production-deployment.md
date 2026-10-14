@@ -28,7 +28,9 @@ node --env-file-if-exists=.env.production.local scripts/validate-production.mjs
 
 ## Контейнер
 
-`Dockerfile` использует официальный `node:24-bookworm-slim` в трёх стадиях: зависимости, build, runtime. Root должен включить `output: "standalone"` в `next.config.ts` до финальной проверки контейнера. Runtime копирует traced standalone, static/public и два файла preflight, запускается пользователем `node`. Секреты нужны только при запуске. CMD сначала выполняет preflight, затем `exec node server.js`; неверная конфигурация завершает контейнер до запуска приложения. Базовый tag ограничен Node 24; перед повторяемым production-релизом закрепить проверенный digest образа в процедуре сборки.
+Финальная интеграция выполнена: standalone включён, базовый Node image закреплён digest в Dockerfile. Linux build и runtime smoke прошли: UID 1000, health/readiness 200 с локальной MongoDB, readiness 503 после остановки БД, env-файлы/временные каталоги не включены. Использовались синтетические параметры проверки, реальные провайдеры не вызывались. Команды и подготовительные действия ниже остаются процедурой для новой целевой среды.
+
+`Dockerfile` использует официальный `node:24-bookworm-slim`, закреплённый digest, в трёх стадиях: зависимости, build, runtime. В next.config.ts включён output:standalone. Runtime копирует traced standalone, static/public и два файла preflight, запускается пользователем node. Секреты нужны только при запуске. CMD сначала выполняет preflight, затем exec node server.js; неверная конфигурация завершает контейнер до запуска приложения. При обновлении Node digest повторить сборку и smoke.
 
 ```sh
 docker build -t ai-stock-market:release .
@@ -37,7 +39,7 @@ docker run --rm --name ai-stock-market --env-file .env.production.local -p 127.0
 
 `.dockerignore` исключает `.env*` на всех уровнях, локальные credentials-файлы основных форматов, `.npmrc`, `.git`, зависимости и результаты сборки. Не добавлять секреты в исходники: ignore не распознаёт произвольно названный файл с секретным содержимым. Reverse proxy завершает TLS, сохраняет корректный внешний host/protocol, origin совпадает с `BETTER_AUTH_URL`; порт Node не публикуется непосредственно в Интернет. Для веб-сервиса и background workflow нужны одинаковые секреты и одна БД/общий бюджет API.
 
-На 2026-10-14 Docker Engine стал доступен, но этот независимый worktree основан на этапе 6 и не использует ещё окончательные сборки этапов 7/8. Контейнер здесь не собирался по указанию основного агента. Финальную Linux-сборку и smoke необходимо выполнить один раз в объединённой ветке после standalone-настройки: запуск nonroot, отказ при неверном env, `/api/health`, `/api/readiness`, реальная replica set и базовый authenticated API. Не объявлять контейнер проверенным до этого прогона.
+На 2026-10-14 финальная Linux-сборка общей ветки и smoke выполнены: nonroot, отказ при неверном env, health/readiness и настоящая replica set. Защищённые API проверены отдельным интеграционным набором с двумя пользователями. На новой целевой среде повторить контейнерные проверки и полный authenticated сценарий вместе с A; локальная проверка не заменяет staging/production приёмку.
 
 ## Проверки доступности
 
@@ -45,12 +47,12 @@ docker run --rm --name ai-stock-market --env-file .env.production.local -p 127.0
 - `/api/readiness` — generic JSON `status: ready`/`unavailable`, HTTP 200/503. Проверяет конфигурацию, ping и writable replica set. Не раскрывает host, имя БД/replica set, ключи и тексты исключений. Ответ `no-store`, внутри процесса кэш 5 секунд и объединение одновременных проверок; предел ожидания 4 секунды.
 - Readiness не отправляет письма, не расходует market/AI квоты и не проверяет реальные разрешения на записи/транзакции. Это проверяют отдельные контрольные сценарии в staging, затем в согласованном production-аккаунте.
 
-## Интеграция основным агентом
+## Конфигурация репозитория
 
-Общие файлы этого этапа не менялись. Root добавляет:
+Общий агент подключил:
 
-1. `next.config.ts`: `output: "standalone"` для Docker runtime.
-2. Необязательный script `production:check`: `node --env-file-if-exists=.env.production.local scripts/validate-production.mjs`.
+1. `next.config.ts`: `output: "standalone"` для Docker runtime, agentRules:false для сохранения согласованного AGENTS.md при dev-запуске.
+2. Script `production:check`: `node --env-file-if-exists=.env.production.local scripts/validate-production.mjs`.
 3. В CI оставить lint/typecheck/unit/integration/build и dependency audit. Deployment-тесты автоматически входят в существующий `npm test`. Не выполнять настоящий production preflight с секретами на публичных PR; для CI предназначены синтетические конфигурационные тесты. Релизный job запускает preflight на целевом окружении перед стартом и оценивает readiness.
 4. Финальный `npm run check`, изолированные MongoDB integration tests, Linux container smoke и проверку A по P8.1/P8.3.
 
