@@ -1,0 +1,25 @@
+name: ai-stock-market
+services:
+  mongo:
+    image: mongo:8.0@sha256:6657bf2413fefc5be649390318f5b4cd7328e982722f8ce2ac6dfa6f0a42cb03
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mongosh --quiet --eval 'try { quit(rs.status().ok ? 0 : 1) }
+          catch(e) { rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]}); quit(1) }'
+      interval: 5s
+      timeout: 10s
+      retries: 20
+  mailpit:
+    image: axllent/mailpit:v1.27@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+volumes:
+  mongo-data:

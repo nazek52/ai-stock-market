@@ -2,13 +2,38 @@
 
 Репозиторий для разработки приложения наблюдения за фондовым рынком по мотивам [видеоурока JavaScript Mastery](https://youtu.be/gu4pafNCXng).
 
-Сейчас здесь находится спецификация проекта. Код приложения будет добавляться по этапам.
+Рабочий репозиторий: https://github.com/nazek52/ai-stock-market. Участник B реализует сервер и API по этапам; участник A подключает экраны к [контрактам данных](docs/api-contract.md).
+
+## Локальный запуск
+
+Требуется Node.js 24 LTS. Внешние аккаунты для сборки и unit-тестов не нужны.
+
+```sh
+npm ci
+npm run setup:local
+npm run services:up
+npm run dev
+```
+
+`setup:local` создаёт игнорируемый `.env.local` со случайным секретом и не перезаписывает существующий файл. `services:up` требует запущенный Docker Desktop: MongoDB replica set доступен только на `127.0.0.1:27017`, тестовая почта Mailpit - на `http://127.0.0.1:8025`. Остановка: `npm run services:down` (данные MongoDB сохраняются в Docker volume).
+
+После запуска приложение: `http://localhost:3000`; liveness: `/api/health`. В настройках по умолчанию данные синтетические, реальная отправка и расписания выключены. Для приёма писем в Mailpit выбрать `EMAIL_TRANSPORT=smtp`; значения ключей внешних сервисов добавляются только в `.env.local`.
+
+## Проверки
+
+```sh
+npm run check
+npm run test:integration
+```
+
+`check` запускает lint, TypeScript, unit-тесты и production build. Интеграционные тесты появляются с этапом 2 и поднимают собственный временный MongoDB replica set; Docker им не нужен. Тестовая БД не использует `.env.local` и не должна указывать на реальную БД.
 
 ## Документы
 
 - [Единый подробный план](docs/implementation-plan.md) - основной источник задач и критериев готовности для людей и AI-агентов.
 - [PDF-версия плана](docs/implementation-plan.pdf) - копия для чтения и обсуждения.
 - [Правила работы агентов](AGENTS.md) и [контракты](agents/README.md).
+- [Рабочий контракт B](docs/tasks/participant-b.md), [сервисные решения](docs/service-setup.md) и [проверка зависимостей](docs/dependency-audit.md).
 
 При расхождении между Markdown и PDF действующим считается Markdown. Версия плана и журнал изменений указаны в начале основного документа.
 
