@@ -35,7 +35,7 @@ export function safeWebUrl(value: string | null | undefined): string | null {
 }
 
 export function normalizeCompany(input: unknown, symbol: string): StockCompany {
-  if (input && typeof input === "object" && Object.keys(input).length === 0) throw new AppError("NOT_FOUND", "Stock was not found", 404);
+  if (input && typeof input === "object" && !Array.isArray(input) && Object.keys(input).length === 0) throw new AppError("NOT_FOUND", "Stock was not found", 404);
   const result = profileSchema.safeParse(input);
   if (!result.success) return marketInvalid();
   const data = result.data;
