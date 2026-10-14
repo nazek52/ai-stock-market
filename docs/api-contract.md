@@ -21,6 +21,7 @@ P1.3, участник B. Источник типов и схем: `src/contract
 | `PUT /api/preferences/digest` | `DigestPreferenceUpdate` | `DigestPreference` | Явное согласие, timezone и localTime вместе |
 | `GET /api/stocks/search?q=…` | `stockSearchQuerySchema` | `StockSearchResult[]` | Строка 1–80 символов, только поддерживаемые equities |
 | `GET /api/stocks/:symbol/quote` | `symbolSchema` | `StockQuote` | Источник и времена поставщика/получения |
+| `GET /api/stocks/:symbol/company` | `symbolSchema` | `StockCompany` | Проверенная компания, US listing, USD, source |
 | `GET /api/stocks/:symbol/news` | `symbolSchema` | `StockNewsItem[]` | HTTPS/HTTP ссылки исходных новостей; A проверяет схему URL при выводе |
 | `GET /api/watchlist` | Сессия | `WatchlistItem[]` | Только собственные записи |
 | `POST /api/watchlist` | `WatchlistAdd` | `WatchlistItem` | Повтор не создаёт дубль; возвращает существующую запись |
@@ -41,3 +42,7 @@ P1.3, участник B. Источник типов и схем: `src/contract
 Правила первой версии: только `price_above | price_below`, положительный конечный порог до 1 000 000 USD, cooldown целыми минутами 5–10 080, по умолчанию 60. Это границы ввода, не обещание частоты проверок. Интервал обработки и лицензия D2 остаются открытыми; `volume_above` недоступен до решения P7.5. `observedAt` — время самой котировки, `fetchedAt` — время получения приложением; устаревший timestamp не заменять текущим временем.
 
 Клиентские проверки улучшают форму; те же схемы обязательно вызываются на сервере. Требования к отправке почты, проверке существования тикера, квотам, уникальным индексам и авторизации выполняются сервером в следующих этапах.
+
+## Реализованные маршруты B
+
+Этап 2: `/api/auth/*` с нативным JSON Better Auth, профиль и предпочтения дайджеста. Этап 4: поиск, quote, company, news. Рыночные операции требуют сессию и ограничены 60 HTTP-запросами за минуту на пользователя; общий сетевой бюджет Finnhub - до 30/мин. Ответы рынка содержат `X-Market-Data-Mode: fixture | finnhub`; UI обязан маркировать синтетический режим и не выдавать его за реальные данные. Настоящий Finnhub пока не проверен ключами аккаунта.

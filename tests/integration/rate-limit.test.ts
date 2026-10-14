@@ -44,7 +44,7 @@ describe("shared MongoDB limits", () => {
   });
 
   it("never returns a permit with an already consumed lease lifetime", async () => {
-    await (await getDatabase()).collection("request_windows").deleteOne({ _id: "finnhub-global" });
+    await (await getDatabase()).collection<{ _id: string }>("request_windows").deleteOne({ _id: "finnhub-global" });
     await expect(acquireMarketPermit(30, Date.now() - 20000)).rejects.toMatchObject({ code: "RATE_LIMITED" });
     const release = await acquireMarketPermit(30);
     await release();
