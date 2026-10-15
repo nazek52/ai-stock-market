@@ -37,7 +37,7 @@ function subscribeTheme(onChange: () => void) {
 }
 
 function useWidgetTheme(override?: Theme): Theme {
-  const selected = useSyncExternalStore(subscribeTheme, currentTheme, (): Theme => "light");
+  const selected = useSyncExternalStore(subscribeTheme, currentTheme, (): Theme => "dark");
   return override ?? selected;
 }
 
@@ -156,7 +156,16 @@ export function TradingViewMarketOverview({ theme, height, className }: WidgetPr
   const config = useMemo(() => ({
     colorTheme,
     locale: "ru",
-    isTransparent: true,
+    isTransparent: false,
+    plotLineColorGrowing: "#8baee0",
+    plotLineColorFalling: "#8baee0",
+    belowLineFillColorGrowing: "rgba(54, 95, 157, 0.28)",
+    belowLineFillColorFalling: "rgba(54, 95, 157, 0.28)",
+    belowLineFillColorGrowingBottom: "rgba(14, 19, 29, 0)",
+    belowLineFillColorFallingBottom: "rgba(14, 19, 29, 0)",
+    gridLineColor: "rgba(99, 113, 138, 0.12)",
+    scaleFontColor: "#a2adbe",
+    symbolActiveColor: "rgba(44, 79, 131, 0.3)",
     showSymbolLogo: true,
     showChart: true,
     width: "100%",
@@ -173,7 +182,7 @@ export function TradingViewStockHeatmap({ theme, height, className }: WidgetProp
   const config = useMemo(() => ({
     colorTheme,
     locale: "ru",
-    isTransparent: true,
+    isTransparent: false,
     dataSource: "SPX500",
     grouping: "sector",
     blockSize: "market_cap_basic",
@@ -204,7 +213,14 @@ export function TradingViewStockChart({ symbol, exchange, source, theme, height,
   const config = useMemo(() => ({
     colorTheme,
     locale: "ru",
-    isTransparent: true,
+    isTransparent: false,
+    backgroundColor: "#0e131d",
+    widgetFontColor: "#edf2fa",
+    fontColor: "#a2adbe",
+    gridLineColor: "rgba(99, 113, 138, 0.12)",
+    lineColor: "#8baee0",
+    topColor: "rgba(54, 95, 157, 0.3)",
+    bottomColor: "rgba(14, 19, 29, 0)",
     chartOnly: false,
     chartType: "area",
     autosize: true,

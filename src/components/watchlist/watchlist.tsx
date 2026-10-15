@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowUpRight, Bookmark, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,9 +72,9 @@ function QuoteCell({ state }: { state?: QuoteState }) {
     return <div className="text-sm text-muted-foreground"><p>{state.error.code === "RATE_LIMITED" ? "Лимит котировок исчерпан" : state.error.code === "UNAUTHENTICATED" ? "Нужен повторный вход" : "Котировка недоступна"}</p><p>Цена и изменение не показаны.</p></div>;
   }
   const { quote, fixture } = state;
-  return <div className="text-sm">
-    <p className="text-lg font-semibold text-foreground">{money.format(quote.price)}</p>
-    <p className="text-muted-foreground">Изменение: {quote.change === null ? "нет данных" : signedMoney.format(quote.change)}{quote.changePercent === null ? "" : ` (${percent.format(quote.changePercent)} %)`}</p>
+  return <div className="min-w-0 flex-1 text-sm">
+    <p className="text-2xl font-semibold tracking-tight text-foreground tabular-nums">{money.format(quote.price)}</p>
+    <p className={`mt-1 tabular-nums ${quote.change === null || quote.change === 0 ? "text-muted-foreground" : quote.change > 0 ? "text-emerald-300" : "text-rose-300"}`}>Изменение: {quote.change === null ? "нет данных" : signedMoney.format(quote.change)}{quote.changePercent === null ? "" : ` (${percent.format(quote.changePercent)} %)`}</p>
     <p className="mt-1 text-xs text-muted-foreground">{fixture ? "Синтетические тестовые данные" : "Источник: Finnhub"} · время котировки: {safeDate(quote.observedAt, true)} · получено: {safeDate(quote.fetchedAt, true)}</p>
   </div>;
 }
@@ -196,34 +197,33 @@ export function Watchlist() {
     }
   }
 
-  return <div className="grid min-w-0 gap-5 break-words" onKeyDown={(event) => {
+  return <div className="motion-enter grid min-w-0 gap-6 break-words" onKeyDown={(event) => {
     if (event.key === "Escape" && confirmDelete && !pendingDelete) {
       event.preventDefault(); event.stopPropagation(); cancelDelete();
     }
   }}>
     <h2 ref={headingRef} tabIndex={-1} className="sr-only focus:not-sr-only">Список наблюдения{list.kind === "ready" ? `: ${list.items.length} акций, страница ${page + 1} из ${Math.max(1, pageCount)}` : ""}</h2>
     <div role={message?.kind === "error" ? "alert" : "status"} aria-atomic="true" className={message ? `rounded-lg border p-4 text-sm ${message.kind === "error" ? "border-destructive text-destructive" : "border-border bg-muted text-foreground"}` : "sr-only"}>{message?.text}</div>
-    {list.kind === "loading" && <p role="status">Загружаем список…</p>}
+    {list.kind === "loading" && <div className="grid gap-3"><p role="status">Загружаем список…</p><div aria-hidden="true" className="skeleton h-40 rounded-2xl" /><div aria-hidden="true" className="skeleton h-40 rounded-2xl" /></div>}
     {list.kind === "error" && <Card><CardContent className="grid gap-4"><p role="alert" className="text-sm">{errorText(list.error, "открыть список")}</p><div className="flex flex-wrap gap-3">{list.error.code === "UNAUTHENTICATED" && <Link className="button button-primary" href="/login">Войти</Link>}<Button type="button" variant="outline" onClick={refresh}>Повторить</Button></div></CardContent></Card>}
-    {list.kind === "ready" && list.items.length === 0 && <Card><CardContent className="grid gap-4"><p>В вашем списке пока нет акций.</p><Link className="button button-primary w-fit" href="/search">Найти акцию</Link></CardContent></Card>}
+    {list.kind === "ready" && list.items.length === 0 && <Card><CardContent><div className="empty-state"><Bookmark aria-hidden="true" className="mb-1 size-8 text-accent-foreground" /><h3 className="text-lg font-semibold text-foreground">Ваш рынок начинается здесь</h3><p className="mt-2">В вашем списке пока нет акций. Добавьте компании, за которыми хотите следить.</p><Link className="button button-primary mt-5" href="/search"><Plus aria-hidden="true" className="size-4" />Найти акцию</Link></div></CardContent></Card>}
     {list.kind === "ready" && list.items.length > 0 && <>
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <p className="text-sm text-muted-foreground">Акций в списке: {list.items.length}</p>
+        <div><span className="section-kicker">ИНСТРУМЕНТЫ</span><p className="mt-1 text-sm text-muted-foreground">Акций в списке: <span className="font-semibold text-foreground">{list.items.length}</span></p></div>
         <div className="flex min-w-0 flex-wrap items-end gap-3">
           <div className="min-w-0 max-w-full"><label htmlFor="watchlist-sort" className="block text-sm font-medium">Сортировка</label><select id="watchlist-sort" value={sort} disabled={!!pendingDelete} onChange={(event) => { setSort(event.target.value as SortOrder); setPage(0); setConfirmDelete(null); }} className="mt-1 min-h-11 max-w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option><option value="symbol">По тикеру</option><option value="company">По компании</option></select></div>
-          <Button type="button" variant="outline" onClick={refresh} disabled={!!pendingDelete}>Обновить котировки</Button>
+          <Button type="button" variant="outline" onClick={refresh} disabled={!!pendingDelete}><RefreshCw aria-hidden="true" className="size-4" />Обновить котировки</Button>
         </div>
       </div>
       <ul className="grid min-w-0 gap-4">
         {visibleItems.map((item) => <li key={item.id} className="min-w-0">
-          <Card>
-            <CardHeader className="gap-1">
-              <CardTitle><h2 className="m-0 text-base"><Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="text-primary underline-offset-4 hover:underline">{item.symbol}</Link> · {item.companyName}</h2></CardTitle>
-              <p className="text-xs text-muted-foreground">Добавлено <time dateTime={item.createdAt}>{safeDate(item.createdAt)}</time></p>
+          <Card className="data-row">
+            <CardHeader className="gap-3">
+              <div className="flex min-w-0 items-start gap-3"><span aria-hidden="true" className="symbol-avatar shrink-0">{item.symbol.slice(0, 2)}</span><div className="min-w-0 flex-1"><CardTitle><h2 className="m-0 text-base"><Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="inline-flex items-center gap-1.5 text-accent-foreground underline-offset-4 hover:underline">{item.symbol}<ArrowUpRight aria-hidden="true" className="size-3.5" /></Link></h2></CardTitle><p className="mt-1 text-sm text-muted-foreground">{item.companyName}</p><p className="mt-1 text-xs text-muted-foreground">Добавлено <time dateTime={item.createdAt}>{safeDate(item.createdAt)}</time></p></div></div>
             </CardHeader>
             <CardContent className="flex min-w-0 flex-wrap items-end justify-between gap-4">
               <QuoteCell state={quotes[item.symbol]} />
-              <Button type="button" variant="outline" disabled={!!pendingDelete} onClick={(event) => { deleteTriggerRef.current = event.currentTarget; setConfirmDelete(item.symbol); }} aria-label={`Удалить ${item.symbol} из списка`} aria-expanded={confirmDelete === item.symbol} aria-controls={confirmDelete === item.symbol ? `watchlist-delete-${item.symbol}` : undefined}>Удалить</Button>
+              <Button type="button" variant="outline" disabled={!!pendingDelete} onClick={(event) => { deleteTriggerRef.current = event.currentTarget; setConfirmDelete(item.symbol); }} aria-label={`Удалить ${item.symbol} из списка`} aria-expanded={confirmDelete === item.symbol} aria-controls={confirmDelete === item.symbol ? `watchlist-delete-${item.symbol}` : undefined}><Trash2 aria-hidden="true" className="size-4" />Удалить</Button>
               {confirmDelete === item.symbol && <div id={`watchlist-delete-${item.symbol}`} role="group" aria-labelledby={`watchlist-delete-question-${item.symbol}`} className="grid w-full min-w-0 gap-2 rounded-lg border border-destructive p-3">
                 <p id={`watchlist-delete-question-${item.symbol}`}>Удалить {item.symbol} из списка наблюдения? Акцию можно добавить снова через поиск.</p>
                 <div className="flex flex-wrap gap-2"><Button type="button" variant="destructive" onClick={() => void remove(item.symbol)} disabled={!!pendingDelete} aria-label={`Подтвердить удаление ${item.symbol} из списка`}>{pendingDelete === item.symbol ? "Удаляем…" : "Подтвердить удаление"}</Button><Button ref={cancelDeleteRef} type="button" variant="outline" onClick={cancelDelete} disabled={!!pendingDelete}>Отмена</Button></div>

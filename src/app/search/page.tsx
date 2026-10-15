@@ -6,11 +6,11 @@ export const metadata = { title: "Поиск компании | AI Stock Market"
 export default function SearchPage() {
   return (
     <AppShell active="Поиск">
-      <div className="page-heading">
+      <div className="page-heading motion-enter">
         <div>
-          <span className="eyebrow">АКЦИИ США</span>
+          <span className="section-kicker">ИССЛЕДУЙТЕ РЫНОК · АКЦИИ США</span>
           <h1>Поиск компании</h1>
-          <p>Найдите акцию по тикеру или названию и откройте её карточку.</p>
+          <p>Нужные инструменты — в одном поиске. Найдите компанию, изучите данные и сохраните в свой список.</p>
         </div>
       </div>
       <StockSearch />

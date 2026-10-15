@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowDown, ArrowUp, Bell, BellOff, Clock3, Pause, Pencil, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { priceAlertCreateSchema, priceAlertUpdateSchema, type ApiError, type ApiResult, type PriceAlertRule } from "@/contracts";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,7 @@ type List = { state: "loading" } | { state: "ready"; rules: PriceAlertRule[] } |
 type Notice = { kind: "success" | "error"; text: string; login?: boolean } | null;
 type Form = { symbol: string; type: "price_above" | "price_below"; threshold: string; cooldownMinutes: string };
 const blank: Form = { symbol: "", type: "price_above", threshold: "", cooldownMinutes: "60" };
-const fieldClass = "mt-1 min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
+const fieldClass = "mt-2 min-h-12 min-w-0 max-w-full w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
 const money = new Intl.NumberFormat("ru-RU", { style: "currency", currency: "USD" });
 const dateTime = new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short" });
 
@@ -258,43 +259,42 @@ export function AlertRules({ pollSeconds, scheduleEnabled, marketMode }: { pollS
     focusAfterUpdate(succeeded ? headingRef.current : cancelDeleteRef.current);
   }
 
-  return <div className="grid min-w-0 gap-6 break-words" onKeyDown={(event) => {
+  return <div className="motion-enter grid min-w-0 gap-6 break-words" onKeyDown={(event) => {
     if (event.key !== "Escape" || pending) return;
     if (confirmDelete) { event.preventDefault(); event.stopPropagation(); cancelDelete(); }
     else if (editing) { event.preventDefault(); event.stopPropagation(); cancelEdit(); }
   }}>
     <h2 ref={headingRef} tabIndex={-1} className="sr-only focus:not-sr-only">Управление правилами уведомлений</h2>
-    <Card><CardContent className="grid gap-2 text-sm text-muted-foreground">
-      <p>{scheduleEnabled ? `Плановый обход настроен каждые ${pollSeconds / 60} мин.` : "Проверка правил сейчас выключена."} Время письма зависит от свежести котировки, очереди и почтового сервиса; гарантированная задержка не установлена.</p>
-      {marketMode === "fixture" && <p>Котировки в этом окружении синтетические и предназначены только для проверки сценариев.</p>}
-      <p>Пауза между письмами ограничивает повторы и не задаёт частоту проверки.</p>
+    <Card><CardContent className="flex items-start gap-3 text-sm text-muted-foreground">
+      {scheduleEnabled ? <Bell aria-hidden="true" className="mt-1 size-5 shrink-0 text-accent-foreground" /> : <BellOff aria-hidden="true" className="mt-1 size-5 shrink-0 text-muted-foreground" />}<div className="min-w-0 space-y-2"><p className="font-medium text-foreground">{scheduleEnabled ? `Плановый обход настроен каждые ${pollSeconds / 60} мин.` : "Проверка правил сейчас выключена."}</p>{marketMode === "fixture" && <p className="text-xs text-muted-foreground">FIXTURE · Синтетические котировки для проверки сценариев.</p>}<details><summary className="w-fit cursor-pointer text-accent-foreground">Как работают уведомления</summary><div className="mt-2 grid gap-2"><p>Время письма зависит от свежести котировки, очереди и почтового сервиса; гарантированная задержка не установлена.</p>
+      <p>Пауза между письмами ограничивает повторы и не задаёт частоту проверки.</p></div></details></div>
     </CardContent></Card>
     <NoticeBox notice={notice} />
-    {list.state === "loading" && <p role="status">Загружаем правила…</p>}
+    {list.state === "loading" && <div className="grid gap-3"><p role="status">Загружаем правила…</p><div aria-hidden="true" className="skeleton h-52 rounded-2xl" /></div>}
     {list.state === "error" && <Card><CardContent className="grid gap-3"><NoticeBox notice={explain(list.error)} /><Button type="button" variant="outline" className="w-fit" onClick={refresh}>Повторить загрузку</Button></CardContent></Card>}
-    {list.state === "ready" && <>
-      <Card><CardHeader><CardTitle><h2 className="m-0 text-lg">{editing ? "Изменить правило" : "Создать правило"}</h2></CardTitle></CardHeader><CardContent>
+    {list.state === "ready" && <div className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+      <Card className="min-w-0"><CardHeader><span className="section-kicker">КОНСТРУКТОР ПРАВИЛ</span><CardTitle><h2 className="m-0 text-xl">{editing ? "Изменить правило" : "Новое ценовое правило"}</h2></CardTitle><p className="text-sm text-muted-foreground">Выберите инструмент и уровень, за которым хотите следить.</p></CardHeader><CardContent>
         <form ref={formRef} onSubmit={save} aria-label={editing ? `Изменить правило для ${form.symbol}` : "Создать правило уведомления"} className="grid gap-4 sm:grid-cols-2" noValidate>
           <div><label htmlFor="alert-symbol" className="text-sm font-medium">Тикер акции</label><input id="alert-symbol" name="symbol" className={fieldClass} value={form.symbol} onChange={(event) => change("symbol", event.target.value)} placeholder="AAPL" autoComplete="off" disabled={!!editing || !!pending} aria-invalid={!!errors.symbol} aria-describedby={errors.symbol ? "alert-symbol-error" : undefined} />{errors.symbol && <p id="alert-symbol-error" className="mt-1 text-sm text-destructive">{errors.symbol}</p>}</div>
           <div className="min-w-0"><label htmlFor="alert-type" className="text-sm font-medium">Условие</label><select id="alert-type" name="type" className={fieldClass} value={form.type} onChange={(event) => change("type", event.target.value)} disabled={!!pending} aria-invalid={!!errors.type} aria-describedby={errors.type ? "alert-type-error" : undefined}><option value="price_above">Цена выше порога</option><option value="price_below">Цена ниже порога</option></select>{errors.type && <p id="alert-type-error" className="mt-1 text-sm text-destructive">{errors.type}</p>}</div>
           <div><label htmlFor="alert-threshold" className="text-sm font-medium">Цена, USD</label><input id="alert-threshold" name="threshold" type="number" min="0.000001" max="1000000" step="any" inputMode="decimal" className={fieldClass} value={form.threshold} onChange={(event) => change("threshold", event.target.value)} disabled={!!pending} aria-invalid={!!errors.threshold} aria-describedby={errors.threshold ? "alert-threshold-error" : undefined} />{errors.threshold && <p id="alert-threshold-error" className="mt-1 text-sm text-destructive">{errors.threshold}</p>}</div>
           <div><label htmlFor="alert-cooldown" className="text-sm font-medium">Пауза между письмами, минут</label><input id="alert-cooldown" name="cooldownMinutes" type="number" min="5" max="10080" step="1" className={fieldClass} value={form.cooldownMinutes} onChange={(event) => change("cooldownMinutes", event.target.value)} disabled={!!pending} aria-invalid={!!errors.cooldownMinutes} aria-describedby={errors.cooldownMinutes ? "alert-cooldown-error" : "alert-cooldown-help"} /><p id="alert-cooldown-help" className="mt-1 text-xs text-muted-foreground">От 5 минут до 7 дней; по умолчанию 60 минут.</p>{errors.cooldownMinutes && <p id="alert-cooldown-error" className="mt-1 text-sm text-destructive">{errors.cooldownMinutes}</p>}</div>
-          <div className="flex flex-wrap gap-3 sm:col-span-2"><Button type="submit" disabled={!!pending}>{pending === (editing ?? "new") ? "Сохраняем…" : editing ? "Сохранить изменения" : "Создать правило"}</Button>{editing && <Button type="button" variant="outline" onClick={cancelEdit} disabled={!!pending}>Отмена</Button>}</div>
+          <div className="flex flex-wrap gap-3 border-t border-border pt-4 sm:col-span-2"><Button type="submit" disabled={!!pending}><Plus aria-hidden="true" className="size-4" />{pending === (editing ?? "new") ? "Сохраняем…" : editing ? "Сохранить изменения" : "Создать правило"}</Button>{editing && <Button type="button" variant="outline" onClick={cancelEdit} disabled={!!pending}>Отмена</Button>}</div>
         </form>
       </CardContent></Card>
-      <section aria-labelledby="alerts-list-heading" className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="alerts-list-heading" className="font-heading text-xl">Мои правила ({list.rules.length})</h2><Button type="button" variant="outline" onClick={refresh} disabled={!!pending}>Обновить</Button></div>
-        {list.rules.length === 0 && <Card><CardContent><p>Правил пока нет. Создайте первое правило выше.</p></CardContent></Card>}
+      <section aria-labelledby="alerts-list-heading" className="grid min-w-0 gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3"><h2 id="alerts-list-heading" className="m-0 font-heading text-xl">Мои правила <span className="ml-1 text-sm text-muted-foreground">{list.rules.length}</span></h2><Button type="button" variant="outline" onClick={refresh} disabled={!!pending}><RefreshCw aria-hidden="true" className="size-4" />Обновить</Button></div>
+        {list.rules.length === 0 && <Card><CardContent><div className="empty-state"><Bell aria-hidden="true" className="mb-1 size-8 text-accent-foreground" /><h3 className="text-base font-semibold text-foreground">Настройте ценовой уровень</h3><p className="mt-2">Правил пока нет. Создайте первое правило в форме.</p></div></CardContent></Card>}
         <ul className="grid min-w-0 gap-4">{list.rules.map((rule, index) => {
           const label = `${rule.symbol}: цена ${rule.type === "price_above" ? "выше" : "ниже"} ${money.format(rule.threshold)}, правило ${index + 1}`;
           const confirmationId = `alert-delete-confirm-${rule.id}`;
-          return <li key={rule.id} className="min-w-0"><Card>
-          <CardHeader><CardTitle><h3 className="m-0 text-base"><Link href={`/stocks/${encodeURIComponent(rule.symbol)}`} className="text-primary underline-offset-4 hover:underline">{rule.symbol}</Link> · {rule.type === "price_above" ? "выше" : "ниже"} {money.format(rule.threshold)}</h3></CardTitle><p className="text-sm text-muted-foreground">{rule.status === "active" ? "Включено" : "Приостановлено"} · повторное письмо не раньше чем через {rule.cooldownMinutes} мин.</p></CardHeader>
-          <CardContent className="grid min-w-0 gap-3"><p className="text-xs text-muted-foreground">Последний зафиксированный переход порога: {displayDate(rule.lastTriggeredAt)}. Доставка письма этим временем не подтверждается.</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={(event) => { editTriggerRef.current = event.currentTarget; edit(rule); }} disabled={!!pending} aria-label={`Изменить ${label}`}>Изменить</Button><Button id={`alert-toggle-${rule.id}`} type="button" variant="outline" onClick={() => void toggle(rule)} disabled={!!pending} aria-label={`${rule.status === "active" ? "Приостановить" : "Возобновить"} ${label}`}>{pending === rule.id ? "Сохраняем…" : rule.status === "active" ? "Приостановить" : "Возобновить"}</Button><Button type="button" variant="destructive" onClick={(event) => { deleteTriggerRef.current = event.currentTarget; setConfirmDelete(rule.id); }} disabled={!!pending} aria-label={`Удалить ${label}`} aria-expanded={confirmDelete === rule.id} aria-controls={confirmDelete === rule.id ? confirmationId : undefined}>Удалить</Button></div>
+          return <li key={rule.id} className="min-w-0"><Card className="data-row">
+          <CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span aria-hidden="true" className="symbol-avatar shrink-0">{rule.symbol.slice(0, 2)}</span><Link href={`/stocks/${encodeURIComponent(rule.symbol)}`} className="font-semibold text-accent-foreground underline-offset-4 hover:underline">{rule.symbol}</Link></div><span className={`rounded-full border px-2.5 py-1 text-xs ${rule.status === "active" ? "border-emerald-400/20 bg-emerald-400/5 text-emerald-300" : "border-border bg-muted text-muted-foreground"}`}>{rule.status === "active" ? "Включено" : "Приостановлено"}</span></div><CardTitle><h3 className="mt-4 mb-0 flex flex-wrap items-center gap-2 text-xl tracking-tight">{rule.type === "price_above" ? <ArrowUp aria-hidden="true" className="size-5 text-accent-foreground" /> : <ArrowDown aria-hidden="true" className="size-5 text-accent-foreground" />}<span className="text-sm font-normal text-muted-foreground">{rule.type === "price_above" ? "Цена выше" : "Цена ниже"}</span>{money.format(rule.threshold)}</h3></CardTitle><p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground"><Clock3 aria-hidden="true" className="size-3.5 shrink-0" />Повторное письмо не раньше чем через {rule.cooldownMinutes} мин.</p></CardHeader>
+          <CardContent className="grid min-w-0 gap-3"><p className="text-xs text-muted-foreground">Последний зафиксированный переход порога: {displayDate(rule.lastTriggeredAt)}. Доставка письма этим временем не подтверждается.</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={(event) => { editTriggerRef.current = event.currentTarget; edit(rule); }} disabled={!!pending} aria-label={`Изменить ${label}`}><Pencil aria-hidden="true" className="size-3.5" />Изменить</Button><Button id={`alert-toggle-${rule.id}`} type="button" variant="outline" onClick={() => void toggle(rule)} disabled={!!pending} aria-label={`${rule.status === "active" ? "Приостановить" : "Возобновить"} ${label}`}>{rule.status === "active" ? <Pause aria-hidden="true" className="size-3.5" /> : <Play aria-hidden="true" className="size-3.5" />}{pending === rule.id ? "Сохраняем…" : rule.status === "active" ? "Приостановить" : "Возобновить"}</Button><Button type="button" variant="destructive" onClick={(event) => { deleteTriggerRef.current = event.currentTarget; setConfirmDelete(rule.id); }} disabled={!!pending} aria-label={`Удалить ${label}`} aria-expanded={confirmDelete === rule.id} aria-controls={confirmDelete === rule.id ? confirmationId : undefined}><Trash2 aria-hidden="true" className="size-3.5" />Удалить</Button></div>
             {confirmDelete === rule.id && <div id={confirmationId} role="group" aria-labelledby={`${confirmationId}-question`} className="grid min-w-0 gap-2 rounded-lg border border-destructive p-3"><p id={`${confirmationId}-question`}>Удалить {label}? Это действие нельзя отменить.</p><div className="flex flex-wrap gap-2"><Button type="button" variant="destructive" onClick={() => void remove(rule)} disabled={!!pending} aria-label={`Подтвердить удаление ${label}`}>{pending === rule.id ? "Удаляем…" : "Подтвердить удаление"}</Button><Button ref={cancelDeleteRef} type="button" variant="outline" onClick={cancelDelete} disabled={!!pending}>Отмена</Button></div></div>}
           </CardContent>
         </Card></li>; })}</ul>
       </section>
-    </>}
+    </div>}
   </div>;
 }

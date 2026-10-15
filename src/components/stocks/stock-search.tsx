@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowUpRight, Bookmark, Check, LoaderCircle, Search, SearchX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ApiError, ApiResult, StockSearchResult, WatchlistItem } from "@/contracts";
 import { Button } from "@/components/ui/button";
@@ -154,17 +155,18 @@ export function StockSearch() {
   }
 
   return (
-    <div className="grid min-w-0 max-w-3xl gap-5">
+    <div className="motion-enter grid min-w-0 max-w-5xl gap-6">
       <Card className="min-w-0 [overflow-wrap:anywhere]">
         <CardHeader>
-          <CardTitle><h2 className="m-0 text-lg">Найти акцию</h2></CardTitle>
+          <span className="section-kicker">КАТАЛОГ ИНСТРУМЕНТОВ</span>
+          <CardTitle><h2 className="m-0 text-xl">Какую компанию ищем?</h2></CardTitle>
           <CardDescription>Поиск акций США по тикеру или названию. Результаты предоставляет серверный рыночный источник.</CardDescription>
         </CardHeader>
         <CardContent>
           <div role="search" className="flex flex-col gap-3 sm:flex-row sm:items-end">
             <div className="min-w-0 flex-1">
               <label htmlFor="stock-search" className="text-sm font-medium">Тикер или название компании</label>
-              <input
+              <div className="relative mt-2"><Search aria-hidden="true" className="pointer-events-none absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" /><input
                 id="stock-search"
                 ref={inputRef}
                 type="search"
@@ -174,8 +176,8 @@ export function StockSearch() {
                 autoComplete="off"
                 placeholder="Например, AAPL или Apple"
                 aria-controls="stock-search-results"
-                className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              />
+                className="min-h-14 w-full rounded-xl border border-input bg-background py-3 pl-12 pr-4 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              /></div>
             </div>
             {query && <Button type="button" variant="outline" size="lg" onClick={() => { setQuery(""); setActionError(null); inputRef.current?.focus(); }}>Очистить</Button>}
           </div>
@@ -187,12 +189,12 @@ export function StockSearch() {
       <section id="stock-search-results" aria-labelledby="stock-search-results-title" className="min-w-0 [overflow-wrap:anywhere]" aria-busy={!!search && (display.status === "idle" || display.status === "loading")}>
         <h2 id="stock-search-results-title" className="mb-3 text-lg font-semibold">Результаты поиска</h2>
         {watchlist.status === "loading" && <p role="status" className="mb-3 text-sm text-muted-foreground">Загружаем ваш список отслеживания…</p>}
-        {watchlist.status === "unauthenticated" && <p role="status" className="mb-3 text-sm text-muted-foreground">Чтобы сохранять акции, <Link href="/login" className="font-semibold text-primary underline">войдите в аккаунт</Link>.</p>}
+        {watchlist.status === "unauthenticated" && <p role="status" className="mb-3 text-sm text-muted-foreground">Чтобы сохранять акции, <Link href="/login" className="font-semibold text-accent-foreground underline">войдите в аккаунт</Link>.</p>}
         {watchlist.status === "error" && <p role="alert" className="mb-3 text-sm text-destructive">Не удалось загрузить список отслеживания. Обновите страницу, чтобы повторить.</p>}
         {!search ? (
-          <Card><CardContent><p>Введите тикер или название компании.</p></CardContent></Card>
+          <Card><CardContent><div className="empty-state"><Search aria-hidden="true" className="mb-1 size-8 text-accent-foreground" /><h3 className="text-base font-semibold text-foreground">Найдите следующий инструмент</h3><p className="mt-2">Начните с тикера или названия: например, AAPL или Apple.</p></div></CardContent></Card>
         ) : display.status === "idle" || display.status === "loading" ? (
-          <Card><CardContent><p role="status">Ищем акции…</p></CardContent></Card>
+          <Card><CardContent><div role="status" className="flex items-center gap-3 py-8 text-muted-foreground"><LoaderCircle aria-hidden="true" className="size-5 motion-safe:animate-spin" />Ищем акции…</div><div aria-hidden="true" className="grid gap-3"><div className="skeleton h-16 rounded-xl" /><div className="skeleton h-16 rounded-xl" /></div></CardContent></Card>
         ) : display.status === "error" ? (
           <Card><CardContent className="grid gap-3">
             <p role="alert">{display.error.code === "UNAUTHENTICATED"
@@ -203,7 +205,7 @@ export function StockSearch() {
                   ? "Проверьте запрос: введите от 1 до 80 символов."
                   : "Сейчас поиск недоступен. Попробуйте позже."}</p>
             {display.error.code === "UNAUTHENTICATED" ? (
-              <Link className="text-sm font-semibold text-primary underline" href="/login">Войти</Link>
+              <Link className="text-sm font-semibold text-accent-foreground underline" href="/login">Войти</Link>
             ) : (
               <Button type="button" variant="outline" onClick={() => setRetry((value) => value + 1)}>Повторить поиск</Button>
             )}
@@ -215,18 +217,19 @@ export function StockSearch() {
               Найдено: {display.results.length}
             </p>
             {display.results.length === 0 ? (
-              <Card><CardContent><p>По запросу «{search}» ничего не найдено. Проверьте тикер или название компании.</p></CardContent></Card>
+              <Card><CardContent><div className="empty-state"><SearchX aria-hidden="true" className="mb-1 size-8 text-muted-foreground" /><h3 className="text-base font-semibold text-foreground">Совпадений пока нет</h3><p className="mt-2">По запросу «{search}» ничего не найдено. Проверьте тикер или название компании.</p></div></CardContent></Card>
             ) : (
               <ul className="grid gap-3">
                 {display.results.map((stock) => (
                   <li key={stock.symbol}>
-                    <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 sm:gap-3">
-                      <Link href={`/stocks/${encodeURIComponent(stock.symbol)}`} className="min-w-0 flex-1 rounded-lg p-2 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
-                        <span className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="min-w-0 break-words text-base font-semibold text-foreground">{stock.symbol} <span className="text-sm font-normal text-muted-foreground">· {stock.companyName}</span></span>
-                          <span className="text-xs font-medium text-muted-foreground">{stock.exchange ?? "Биржа не указана"} · Акция</span>
+                    <div className="data-row flex items-center gap-2 rounded-2xl border border-border bg-card p-2 sm:gap-3 sm:p-3">
+                      <Link href={`/stocks/${encodeURIComponent(stock.symbol)}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-2 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                        <span aria-hidden="true" className="hidden shrink-0 min-[380px]:block"><span className="symbol-avatar">{stock.symbol.slice(0, 2)}</span></span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="text-base font-semibold tracking-wide text-foreground">{stock.symbol}</span><span className="text-xs text-muted-foreground">{stock.exchange ?? "Биржа не указана"} · Акция</span></span>
+                          <span className="mt-1 block break-words text-sm text-muted-foreground">{stock.companyName}</span>
+                          <span className="mt-2 inline-flex items-center gap-1 text-xs text-accent-foreground">Открыть карточку <ArrowUpRight aria-hidden="true" className="size-3.5" /></span>
                         </span>
-                        <span className="mt-2 block text-xs text-primary">Открыть карточку <span aria-hidden="true">→</span></span>
                       </Link>
                       <Button
                         type="button"
@@ -240,7 +243,7 @@ export function StockSearch() {
                         onClick={(event) => void toggleWatchlist(stock.symbol, event.currentTarget)}
                         className="shrink-0 text-lg"
                       >
-                        <span aria-hidden="true">{pendingSymbol === stock.symbol ? "…" : watchlist.status === "ready" && watchlist.symbols.has(stock.symbol) ? "★" : "☆"}</span>
+                        {pendingSymbol === stock.symbol ? <LoaderCircle aria-hidden="true" className="size-4 motion-safe:animate-spin" /> : watchlist.status === "ready" && watchlist.symbols.has(stock.symbol) ? <Check aria-hidden="true" className="size-4" /> : <Bookmark aria-hidden="true" className="size-4" />}
                       </Button>
                     </div>
                     {pendingSymbol === stock.symbol && <p role="status" className="mt-2 text-sm text-muted-foreground">Обновляем список для {stock.symbol}…</p>}
