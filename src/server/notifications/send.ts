@@ -53,13 +53,13 @@ async function deliverTransactionalEmail(request: NotificationRequest, transport
   const rendered = renderEmail(payload);
   const { deliveries, eventKey, record } = await initializeDelivery(request, preview);
   if (record.status !== "pending") return {
-    status: record.status, reason: record.reason,
+    status: record.status, reason: record.reason, replayed: true,
     ...(preview && record.status === "skipped" && record.reason === "preview" ? { preview: rendered } : {}),
   };
   const claimed = await deliveries.findOneAndUpdate({ eventKey, status: "pending" }, {
     $set: { status: "sending", claimedAt: new Date(), updatedAt: new Date() },
   }, { returnDocument: "after" });
-  if (!claimed) return { status: (await deliveries.findOne({ eventKey }))?.status ?? "uncertain" };
+  if (!claimed) return { status: (await deliveries.findOne({ eventKey }))?.status ?? "uncertain", replayed: true };
 
   let sendingStarted = false;
   try {

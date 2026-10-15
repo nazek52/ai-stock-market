@@ -11,6 +11,7 @@ import { dueDigestDate, localClock } from "./schedule";
 import { defaultNewsProvider, selectDigestNews, type NewsProvider, type NewsBatch } from "./news";
 import { generateDigestSummary, validateSummary, type SummaryGenerator, type DigestSummary } from "./summary";
 import { unsubscribeUrl } from "./unsubscribe";
+import { assertLocalDemo } from "@/server/demo/guard";
 
 export interface DigestDependencies {
   newsProvider?: NewsProvider;
@@ -18,6 +19,8 @@ export interface DigestDependencies {
   transport?: MailTransport;
   now?: Date;
   previewOnly?: boolean;
+  /** Internal only: same daily delivery key and consent, without waiting for the clock. */
+  manualLocalDemo?: boolean;
 }
 export interface DigestEvent { name: "stock/digest.requested"; id: string; data: { userId: string; localDate: string } }
 
@@ -27,6 +30,7 @@ export function digestEvent(userId: string, localDate: string): DigestEvent {
 
 /** Preparation failures are retriable: the send claim has not been acquired yet. */
 export async function processDigest(userId: string, localDate: string, dependencies: DigestDependencies = {}): Promise<DeliveryResult> {
+  if (dependencies.manualLocalDemo) assertLocalDemo();
   const now = dependencies.now ?? new Date();
   const db = await getDatabase();
   const [preference, recipient] = await Promise.all([
@@ -34,7 +38,7 @@ export async function processDigest(userId: string, localDate: string, dependenc
   ]);
   if (!recipient?.emailVerified) return { status: "skipped", reason: "email_unverified" };
   if (!preference?.enabled) return { status: "skipped", reason: "digest_opted_out" };
-  if (dependencies.previewOnly) {
+  if (dependencies.previewOnly || dependencies.manualLocalDemo) {
     if (localClock(now, preference.timezone).date !== localDate) return { status: "skipped", reason: "wrong_local_date" };
   } else if (dueDigestDate(preference, now) !== localDate) return { status: "skipped", reason: "not_due" };
   const symbols = (await db.collection<{ userId: string; symbol: string }>("watchlist_items").find({ userId }).project<{ symbol: string }>({ _id: 0, symbol: 1 }).limit(100).toArray()).map((item) => item.symbol);
@@ -71,8 +75,13 @@ export async function processDigest(userId: string, localDate: string, dependenc
       ],
     },
   }, dependencies.transport);
-  if (result.status === "sent") {
-    await db.collection<DigestPreferenceDocument>("digest_preferences").updateOne({ userId }, { $set: { lastSentAt: now, updatedAt: new Date() } });
+  if (result.status === "sent" && (!result.replayed || !preference.lastSentAt
+    || localClock(preference.lastSentAt, preference.timezone).date !== localDate)) {
+    // A replay can repair a failed post-SMTP preference write, but must not move
+    // an already recorded daily send time or overwrite a concurrent newer value.
+    await db.collection<DigestPreferenceDocument>("digest_preferences").updateOne({
+      userId, ...(result.replayed ? { lastSentAt: preference.lastSentAt } : {}),
+    }, { $set: { lastSentAt: now, updatedAt: new Date() } });
   }
   return result;
 }

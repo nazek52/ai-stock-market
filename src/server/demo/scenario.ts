@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { MongoServerError } from "mongodb";
 import { z } from "zod";
 import type { StockQuote } from "@/contracts";
-import { getServerEnvironment } from "@/server/config";
 import { getDatabase } from "@/server/db";
 import { AppError, apiHandler, assertSameOrigin, jsonSuccess, parseJson } from "@/server/http";
 import { requireSession } from "@/server/auth/session";
@@ -14,6 +13,9 @@ import { alertEmailRequest } from "@/server/alerts/worker";
 import { getRecipient } from "@/server/notifications/repository";
 import { sendTransactionalEmail, type MailTransport } from "@/server/notifications/send";
 import type { DeliveryStatus } from "@/server/notifications/types";
+import { assertLocalDemo } from "./guard";
+
+export { assertLocalDemo } from "./guard";
 
 export const demoRequestSchema = z.strictObject({ requestId: z.uuid() });
 export interface DemoScenarioResult {
@@ -41,23 +43,6 @@ interface ScenarioDocument {
 export interface ScenarioDependencies {
   transport?: MailTransport;
   resolveStock?: StockResolver;
-}
-
-/** Fail closed before authentication/DB access outside the isolated local showcase. */
-export function assertLocalDemo() {
-  if (process.env.LOCAL_DEMO !== "true" || process.env.NODE_ENV === "production") {
-    throw new AppError("NOT_FOUND", "Demo is unavailable", 404);
-  }
-  const env = getServerEnvironment();
-  if (env.MARKET_DATA_MODE !== "fixture" || env.AI_MODE !== "fixture"
-    || !env.EMAIL_ENABLED || env.EMAIL_TRANSPORT !== "smtp"
-    || !["127.0.0.1", "localhost", "::1"].includes(env.SMTP_HOST)
-    || env.SMTP_PORT !== 1025 || env.SMTP_SECURE || env.SMTP_USER || env.SMTP_PASSWORD
-    || env.DIGEST_SCHEDULE_ENABLED || env.ALERT_SCHEDULE_ENABLED
-    || !env.MONGODB_DATABASE.endsWith("_demo")) {
-    throw new AppError("FORBIDDEN", "Demo requires isolated fixture data and local Mailpit with schedules disabled", 403);
-  }
-  return env;
 }
 
 function syntheticQuote(price: number, observedAt: Date): StockQuote {
