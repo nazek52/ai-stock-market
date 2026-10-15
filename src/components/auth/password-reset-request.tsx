@@ -36,7 +36,7 @@ export function PasswordResetRequest() {
   }
 
   return (
-    <section aria-labelledby="reset-request-title" className="mt-6 border-t border-border pt-5">
+    <section aria-labelledby="reset-request-title" className="mt-7 rounded-xl border border-border bg-background p-4">
       <h2 id="reset-request-title" className="text-base font-semibold">Восстановление доступа</h2>
       <p className="mt-2 text-sm text-muted-foreground">Если адрес зарегистрирован и отправка почты включена, вы сможете получить ссылку для смены пароля. В этой среде почта может быть выключена.</p>
       {complete ? (
@@ -45,7 +45,7 @@ export function PasswordResetRequest() {
         <form noValidate onSubmit={requestReset} aria-busy={pending} aria-labelledby="reset-request-title" className="mt-4 grid min-w-0 gap-3">
           <div>
             <label htmlFor="reset-request-email" className="text-sm font-medium">Электронная почта</label>
-            <input disabled={pending} id="reset-request-email" ref={emailRef} type="email" inputMode="email" autoComplete="email" required value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} aria-invalid={!!error} aria-describedby={error ? "reset-request-error" : undefined} className="mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
+            <input disabled={pending} id="reset-request-email" ref={emailRef} type="email" inputMode="email" autoComplete="email" required value={email} onChange={(event) => { setEmail(event.target.value); setError(""); }} aria-invalid={!!error} aria-describedby={error ? "reset-request-error" : undefined} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-xl border border-input bg-card px-3.5 py-3 text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
           </div>
           {error && <p id="reset-request-error" role="alert" className="text-sm text-destructive">{error}</p>}
           <Button type="submit" variant="outline" disabled={pending} className="w-fit">{pending ? "Отправляем запрос…" : "Запросить ссылку"}</Button>

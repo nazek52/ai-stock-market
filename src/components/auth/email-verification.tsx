@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { authClient } from "@/components/auth/client";
@@ -50,16 +51,18 @@ export function EmailVerification({ user, sessionUnavailable, showMailpit }: Pro
     }
   }
 
-  return <Card className="min-w-0 max-w-4xl">
+  return <Card className="motion-enter min-w-0">
     <CardHeader>
-      <CardTitle><h2 className="m-0 text-lg">Подтверждение электронной почты</h2></CardTitle>
-      <CardDescription>Подтвердите адрес, чтобы получать письма и открывать предпросмотр сводки.</CardDescription>
+      <div className="flex items-start gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-accent-foreground" aria-hidden="true"><ShieldCheck size={20} strokeWidth={1.6} /></span>
+        <div className="grid min-w-0 gap-1"><CardTitle><h2 className="m-0 text-lg">Почта аккаунта</h2></CardTitle><CardDescription>Подтверждение адреса для сводок и уведомлений.</CardDescription></div>
+      </div>
     </CardHeader>
     <CardContent className="grid gap-3">
       {sessionUnavailable ? <>
         <p role="alert" className="text-sm text-destructive">Не удалось проверить сессию. Убедитесь, что локальная база запущена, и повторите проверку.</p>
         <Button type="button" variant="outline" className="w-fit" onClick={() => router.refresh()}>Повторить проверку</Button>
-      </> : !user ? <p className="text-sm">Для подтверждения адреса <Link href="/login" className="font-semibold text-primary underline">войдите в аккаунт</Link>.</p>
+      </> : !user ? <p className="text-sm">Для подтверждения адреса <Link href="/login" className="font-semibold text-accent-foreground underline">войдите в аккаунт</Link>.</p>
         : user.emailVerified ? <p ref={verifiedRef} tabIndex={-1} role="status" className="break-all text-sm">Адрес {user.email} подтверждён.</p>
           : <>
             <p className="break-all text-sm">Адрес {user.email} пока не подтверждён.</p>
@@ -67,7 +70,7 @@ export function EmailVerification({ user, sessionUnavailable, showMailpit }: Pro
               <Button type="button" className="w-fit" disabled={pending} aria-busy={pending} onClick={() => void sendVerification()}>{pending ? "Запрашиваем письмо…" : "Отправить письмо подтверждения"}</Button>
               <Button type="button" variant="outline" disabled={pending} onClick={() => router.refresh()}>Обновить статус</Button>
             </div>
-            {showMailpit && <p className="text-sm text-muted-foreground">В локальном демо письма остаются в <a href="http://127.0.0.1:8025" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline">Mailpit</a>. Откройте письмо для своего адреса, перейдите по ссылке подтверждения, затем вернитесь в настройки и нажмите «Обновить статус».</p>}
+            {showMailpit && <p className="text-sm text-muted-foreground">В локальном демо письма остаются в <a href="http://127.0.0.1:8025" target="_blank" rel="noopener noreferrer" className="font-semibold text-accent-foreground underline">Mailpit</a>. Откройте письмо для своего адреса, перейдите по ссылке подтверждения, затем вернитесь в настройки и нажмите «Обновить статус».</p>}
             {notice && <p role={notice.kind === "error" ? "alert" : "status"} className={`rounded-lg border p-3 text-sm ${notice.kind === "error" ? "border-destructive text-destructive" : "border-border bg-muted text-foreground"}`}>{notice.text}</p>}
           </>}
     </CardContent>

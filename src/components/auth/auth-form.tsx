@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
+import { AuthFrame } from "@/components/auth/auth-frame";
 import { authClient } from "@/components/auth/client";
 import { PasswordResetRequest } from "@/components/auth/password-reset-request";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,7 @@ type Mode = "login" | "register";
 type Field = "name" | "email" | "password" | "confirmPassword";
 type Errors = Partial<Record<Field, string>>;
 
-const inputClass = "mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive";
+const inputClass = "mt-2 min-h-12 min-w-0 max-w-full w-full rounded-xl border border-input bg-background px-3.5 py-3 text-foreground transition-[border-color,box-shadow] duration-200 placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -117,17 +118,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
   }
 
   return (
-    <>
-      <a className="skip-link" href="#main">Перейти к содержимому</a>
-      <main id="main" tabIndex={-1} className="mx-auto flex min-h-screen min-w-0 w-full max-w-lg flex-col justify-center gap-6 px-4 py-12 sm:px-6">
-        <Link href="/" className="w-fit text-sm font-semibold text-primary hover:underline">← К обзору</Link>
-        <Card className="min-w-0 py-8 sm:py-10">
-          <CardHeader className="gap-2 px-6 sm:px-8">
-            <span className="text-xs font-semibold uppercase tracking-widest text-primary">Личный кабинет</span>
+    <AuthFrame variant={mode}>
+        <Card className="min-w-0 py-7 sm:py-8">
+          <CardHeader className="gap-3 px-5 sm:px-7">
+            <span className="auth-kicker">{isRegister ? "Создание аккаунта" : "С возвращением"}</span>
             <CardTitle><h1 id="auth-form-title" className="text-3xl">{isRegister ? "Создать аккаунт" : "Войти в аккаунт"}</h1></CardTitle>
             <CardDescription>{isRegister ? "Укажите имя, адрес электронной почты и пароль от 12 до 128 символов." : "Введите адрес электронной почты и пароль для входа."}</CardDescription>
           </CardHeader>
-          <CardContent className="px-6 sm:px-8">
+          <CardContent className="px-5 sm:px-7">
             <form noValidate onSubmit={handleSubmit} aria-busy={pending} aria-labelledby="auth-form-title" className="grid min-w-0 gap-5">
               {isRegister && (
                 <div>
@@ -153,19 +151,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   {errors.confirmPassword && <p id="auth-confirm-error" className="mt-1 text-sm text-destructive">{errors.confirmPassword}</p>}
                 </div>
               )}
-              <Button type="submit" size="lg" disabled={pending} className="mt-1 w-full">{pending ? "Проверяем данные…" : isRegister ? "Зарегистрироваться" : "Войти"}</Button>
+              <Button type="submit" size="lg" disabled={pending} className="mt-2 w-full">{pending ? "Проверяем данные…" : isRegister ? "Зарегистрироваться" : "Войти"}</Button>
               {notice && <p ref={noticeRef} tabIndex={-1} role="alert" className="rounded-lg border border-border bg-muted p-3 text-sm text-foreground">{notice}</p>}
             </form>
-            {!isRegister && <PasswordResetRequest />}
+            {!isRegister && <details className="auth-recovery"><summary>Забыли пароль?</summary><PasswordResetRequest /></details>}
           </CardContent>
         </Card>
         <p className="text-center text-sm">
           {isRegister ? "Уже есть аккаунт? " : "Нет аккаунта? "}
-          <Link href={isRegister ? "/login" : "/register"} className="font-semibold text-primary underline-offset-4 hover:underline">
+          <Link href={isRegister ? "/login" : "/register"} className="font-semibold text-accent-foreground underline-offset-4 hover:underline">
             {isRegister ? "Войти" : "Зарегистрироваться"}
           </Link>
         </p>
-      </main>
-    </>
+    </AuthFrame>
   );
 }

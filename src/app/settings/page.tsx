@@ -1,3 +1,4 @@
+import { LockKeyhole, SlidersHorizontal } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ProfileSettingsPreview } from "@/components/profile/profile-settings-preview";
 import { DigestPreview } from "@/components/profile/digest-preview";
@@ -19,16 +20,19 @@ export default async function SettingsPage() {
   }
   return (
     <AppShell active="Настройки">
-      <div className="page-heading">
+      <div className="page-heading motion-enter">
         <div>
-          <span className="eyebrow">ПРОФИЛЬ</span>
+          <span className="eyebrow inline-flex items-center gap-2"><SlidersHorizontal size={14} aria-hidden="true" />ВАШЕ ПРОСТРАНСТВО</span>
           <h1>Ваши настройки</h1>
-          <p>Измените профиль, время сводки и согласие на ежедневные письма.</p>
+          <p>Личные предпочтения и письма. Всё под вашим контролем.</p>
         </div>
+        <span className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs text-muted-foreground"><LockKeyhole size={14} aria-hidden="true" />Личные настройки</span>
       </div>
-      <div className="mb-5"><EmailVerification user={user} sessionUnavailable={sessionUnavailable} showMailpit={process.env.LOCAL_DEMO === "true" && process.env.NODE_ENV !== "production"} /></div>
-      <ProfileSettingsPreview />
-      {process.env.NODE_ENV === "development" && <div className="mt-5"><DigestPreview /></div>}
+      <div className="grid min-w-0 gap-6">
+        <EmailVerification user={user} sessionUnavailable={sessionUnavailable} showMailpit={process.env.LOCAL_DEMO === "true" && process.env.NODE_ENV !== "production"} />
+        <ProfileSettingsPreview />
+        {process.env.NODE_ENV === "development" && <DigestPreview />}
+      </div>
     </AppShell>
   );
 }
