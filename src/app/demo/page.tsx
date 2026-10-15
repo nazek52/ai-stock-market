@@ -1,0 +1,16 @@
+import { headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import { AppShell } from "@/components/app-shell";
+import { AlertScenario } from "@/components/demo/alert-scenario";
+import { getSession } from "@/server/auth/session";
+
+export const dynamic = "force-dynamic";
+
+export default async function DemoPage() {
+  if (process.env.LOCAL_DEMO !== "true" || process.env.NODE_ENV === "production") notFound();
+  if (!await getSession(await headers())) redirect("/login");
+  return <AppShell active="Демонстрация">
+    <div className="page-heading"><div><span className="eyebrow">ЛОКАЛЬНЫЙ СЦЕНАРИЙ</span><h1>Демонстрация архитектуры</h1><p>Контролируемые синтетические данные, MongoDB и Mailpit без облачных аккаунтов.</p></div></div>
+    <AlertScenario />
+  </AppShell>;
+}

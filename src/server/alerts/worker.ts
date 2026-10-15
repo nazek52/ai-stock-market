@@ -8,6 +8,7 @@ import { getMarketClient } from "@/server/market";
 import { acquireLease } from "@/server/rate-limit";
 import { sendTransactionalEmail, type MailTransport } from "@/server/notifications/send";
 import { deliveryCollection } from "@/server/notifications/repository";
+import type { NotificationRequest } from "@/server/notifications/types";
 import {
   isEventDeliverable, listPendingEvents, markEventDelivered, processRule,
   type AlertEvent, type AlertRuleDocument,
@@ -151,6 +152,20 @@ async function cancelEvent(event: AlertEvent, reason: string, now: Date) {
     .updateOne({ _id: event._id, status: "pending" }, { $set: { status: "cancelled", cancellationReason: reason, cancelledAt: now } });
 }
 
+/** Shared by the scheduled worker and the explicitly enabled local demo. */
+export function alertEmailRequest(event: AlertEvent): NotificationRequest {
+  return {
+    userId: event.userId, type: "price_alert", idempotencyKey: `alert:${event._id}`,
+    payload: {
+      subject: `Уведомление цены ${event.symbol}`, title: `Условие цены ${event.symbol} выполнено`, fixture: event.source === "fixture",
+      paragraphs: [
+        `Цена: ${event.price} ${event.currency}; порог ${event.type === "price_above" ? "выше" : "ниже"} ${event.threshold} ${event.currency}.`,
+        `Источник: ${event.source}. Время котировки: ${event.observedAt.toISOString()}. Время проверки: ${event.checkedAt.toISOString()}.`,
+      ], links: [],
+    },
+  };
+}
+
 /** Delivery is a separate job so polling never holds a quote/provider lease for SMTP. */
 export async function deliverPendingAlerts(dependencies: DeliveryDependencies = {}) {
   const env = getServerEnvironment();
@@ -185,16 +200,7 @@ export async function deliverPendingAlerts(dependencies: DeliveryDependencies = 
         if (!await isEventDeliverable(event)) {
           await cancelEvent(event, "rule_changed", now); result.cancelled++; continue;
         }
-        const delivery = await bounded(sendTransactionalEmail({
-          userId: event.userId, type: "price_alert", idempotencyKey: `alert:${event._id}`,
-          payload: {
-            subject: `Уведомление цены ${event.symbol}`, title: `Условие цены ${event.symbol} выполнено`, fixture: event.source === "fixture",
-            paragraphs: [
-              `Цена: ${event.price} ${event.currency}; порог ${event.type === "price_above" ? "выше" : "ниже"} ${event.threshold} ${event.currency}.`,
-              `Источник: ${event.source}. Время котировки: ${event.observedAt.toISOString()}. Время проверки: ${event.checkedAt.toISOString()}.`,
-            ], links: [],
-          },
-        }, dependencies.transport), remaining());
+        const delivery = await bounded(sendTransactionalEmail(alertEmailRequest(event), dependencies.transport), remaining());
         if (delivery.status === "sent") { await markEventDelivered(event._id, clock()); result.delivered++; }
         else if (delivery.status === "skipped" || delivery.status === "uncertain") {
           await cancelEvent(event, `delivery_${delivery.status}:${delivery.reason ?? "terminal"}`, clock()); result.cancelled++;

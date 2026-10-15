@@ -10,7 +10,7 @@ export function demoEnvironment(secret, port = 3000, inherited = process.env) {
   if (typeof secret !== "string" || secret.length < 32) throw new Error("Run npm run setup:local to create an authentication secret.");
   if (!Number.isInteger(port) || port < 1024 || port > 65535 || [1025, 8025, 8288, 27017].includes(port)) throw new Error("Use an application port between 1024 and 65535, outside service ports.");
   return {
-    ...inherited, NODE_ENV: "development", LOCAL_DEMO: "true",
+    ...inherited, NODE_ENV: "development", LOCAL_DEMO: "true", COMPOSE_PROGRESS: "plain",
     BETTER_AUTH_URL: `http://localhost:${port}`, BETTER_AUTH_SECRET: secret,
     MONGODB_URI: "mongodb://127.0.0.1:27017/ai_stock_market_demo?replicaSet=rs0&directConnection=true",
     MONGODB_DATABASE: "ai_stock_market_demo",
