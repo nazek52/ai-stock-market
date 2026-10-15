@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import type { StockCompany } from "@/contracts";
 
 const EMBED_ORIGIN = "https://s3.tradingview.com/external-embedding";
-const MARKET_INDICES = [
-  { s: "SP:SPX", d: "S&P 500" },
-  { s: "DJ:DJI", d: "Dow Jones" },
-  { s: "NASDAQ:IXIC", d: "Nasdaq Composite" },
+// TradingView's official free Market Overview preset uses these CFD feeds.
+// Canonical exchange indices may exist on tradingview.com but be unavailable in embeds.
+const MARKET_INDICATORS = [
+  { s: "FOREXCOM:SPXUSD", d: "S&P 500 (CFD)" },
+  { s: "FOREXCOM:DJI", d: "Dow Jones (CFD)" },
+  { s: "FOREXCOM:NSXUSD", d: "Nasdaq 100 (CFD)" },
 ] as const;
 const US_SYMBOL = /^(NASDAQ|NYSE):[A-Z][A-Z0-9.-]{0,14}$/;
 
@@ -151,10 +153,10 @@ export function TradingViewMarketOverview({ theme, height, className }: WidgetPr
     showChart: true,
     width: "100%",
     height: widgetHeight,
-    tabs: [{ title: "Индексы рынка", symbols: MARKET_INDICES }],
+    tabs: [{ title: "Индикаторы рынка (CFD)", symbols: MARKET_INDICATORS, originalTitle: "Indices" }],
   }), [colorTheme, widgetHeight]);
 
-  return <TradingViewEmbed key={`${colorTheme}-${widgetHeight}`} title="Индексы рынка: S&P 500, Dow Jones, Nasdaq Composite, TradingView" scriptName="market-overview" config={config} height={widgetHeight} className={className} />;
+  return <TradingViewEmbed key={`${colorTheme}-${widgetHeight}`} title="Индикаторы рынка (CFD): S&P 500, Dow Jones, Nasdaq 100, FOREX.com через TradingView" scriptName="market-overview" config={config} height={widgetHeight} className={className} />;
 }
 
 export function TradingViewStockHeatmap({ theme, height, className }: WidgetProps) {

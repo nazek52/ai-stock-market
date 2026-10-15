@@ -29,8 +29,8 @@ export default function Home() {
           <div className="grid min-w-0 gap-5 xl:grid-cols-2">
             <Card className="min-w-0">
               <CardHeader>
-                <CardTitle><h3>Индексы рынка</h3></CardTitle>
-                <CardDescription>S&amp;P 500, Dow Jones, Nasdaq Composite · Источник: TradingView</CardDescription>
+                <CardTitle><h3>Индикаторы рынка (CFD)</h3></CardTitle>
+                <CardDescription>S&amp;P 500, Dow Jones, Nasdaq 100 · CFD FOREX.com через TradingView. Это производные инструменты, их цены могут отличаться от индексов. Nasdaq 100 не является Nasdaq Composite.</CardDescription>
               </CardHeader>
               <CardContent className="min-w-0">
                 <TradingViewMarketOverview />
