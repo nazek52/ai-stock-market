@@ -1,5 +1,6 @@
 @import "@fontsource-variable/inter/wght.css";
-@import "tailwindcss";
+/* Keep generated Next files and development logs outside the source watcher. */
+@import "tailwindcss" source("../");
 @import "tw-animate-css";
 @import "../../node_modules/shadcn/dist/tailwind.css";
 
