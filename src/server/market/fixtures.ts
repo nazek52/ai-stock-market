@@ -3,11 +3,28 @@ import type { StockCompany, StockNewsItem, StockQuote } from "@/contracts";
 import { AppError } from "../errors";
 
 const symbols = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA", "BRK.B", "KO"];
+const companyAliases: Record<string, readonly string[]> = {
+  AAPL: ["Apple"],
+  MSFT: ["Microsoft"],
+  NVDA: ["Nvidia"],
+  AMZN: ["Amazon"],
+  TSLA: ["Tesla"],
+  "BRK.B": ["Berkshire", "Berkshire Hathaway"],
+  KO: ["Coca-Cola", "Coca Cola", "CocaCola"],
+};
 export function fixtureCompanies(): StockCompany[] {
   return symbols.map((symbol) => ({
     symbol, companyName: `Synthetic ${symbol} Company`, currency: "USD", exchange: "SYNTHETIC US MARKET",
     instrumentType: "equity", industry: null, website: null, logoUrl: null, marketCapitalization: null, source: "fixture",
   }));
+}
+
+/** Real company names are lookup aliases only; every returned record remains explicitly synthetic. */
+export function searchFixtureCompanies(query: string): StockCompany[] {
+  const normalized = query.trim().toUpperCase();
+  return fixtureCompanies().filter((item) =>
+    `${item.symbol} ${item.companyName} ${(companyAliases[item.symbol] ?? []).join(" ")}`.toUpperCase().includes(normalized),
+  ).slice(0, 5);
 }
 
 export function fixtureCompany(symbol: string): StockCompany {

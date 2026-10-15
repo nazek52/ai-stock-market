@@ -5,7 +5,7 @@ import { getServerEnvironment } from "../config";
 import { AppError } from "../errors";
 import { acquireMarketPermit } from "../rate-limit";
 import { MarketCache } from "./cache";
-import { fixtureCompanies, fixtureCompany, fixtureNews, fixtureQuote } from "./fixtures";
+import { fixtureCompany, fixtureNews, fixtureQuote, searchFixtureCompanies } from "./fixtures";
 import { marketInvalid, normalizeCompany, normalizeNews, normalizeQuote } from "./normalization";
 import { createFinnhubTransport, type TransportOptions } from "./transport";
 
@@ -63,7 +63,7 @@ export function createMarketClient(options: MarketClientOptions): MarketClient {
     async search(input) {
       const { q } = stockSearchQuerySchema.parse({ q: input });
       return cache.read(`search:${q.toUpperCase()}`, ttl, async () => {
-        if (options.mode === "fixture") return fixtureCompanies().filter((item) => `${item.symbol} ${item.companyName}`.toUpperCase().includes(q.toUpperCase())).slice(0, 5);
+        if (options.mode === "fixture") return searchFixtureCompanies(q);
         const parsed = lookupSchema.safeParse(await request("/search", { q, exchange: "US" }));
         if (!parsed.success) return marketInvalid();
         const candidates = [...new Set(parsed.data.result.flatMap((raw) => {

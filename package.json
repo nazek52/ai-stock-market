@@ -7,6 +7,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "demo": "node scripts/demo.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

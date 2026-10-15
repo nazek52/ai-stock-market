@@ -17,6 +17,7 @@ export function AppShell({ active, children }: { active: string; children: React
       <span className="nav-caption">РАБОЧАЯ ОБЛАСТЬ</span>
       <nav className="nav" aria-label="Основная навигация">
         {items.map((item) => <Link key={item.href} href={item.href} className="nav-link" aria-current={active === item.label ? "page" : undefined}><span className="nav-icon" aria-hidden="true">{item.icon}</span>{item.label}</Link>)}
+        {process.env.LOCAL_DEMO === "true" && process.env.NODE_ENV !== "production" && <Link href="/demo" className="nav-link" aria-current={active === "Демонстрация" ? "page" : undefined}><span className="nav-icon" aria-hidden="true">▷</span>Демонстрация</Link>}
       </nav>
       <p className="sidebar-note">Информационный сервис. Не является инвестиционной рекомендацией.</p>
     </aside>

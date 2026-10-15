@@ -123,6 +123,20 @@ describe("market client", () => {
     expect(() => createMarketClient({ mode: "finnhub" })).toThrow("not configured");
   });
 
+  it.each([
+    ["Apple", "AAPL"], ["Microsoft", "MSFT"], ["Nvidia", "NVDA"], ["Amazon", "AMZN"],
+    ["Tesla", "TSLA"], ["Berkshire", "BRK.B"], ["Coca-Cola", "KO"], ["Coca Cola", "KO"],
+    [" aapl ", "AAPL"], ["msft", "MSFT"], ["NVDA", "NVDA"], ["AMZN", "AMZN"],
+    ["tsla", "TSLA"], ["brk.b", "BRK.B"], ["KO", "KO"],
+  ])("finds fixture %s by company alias or symbol without claiming live data", async (query, symbol) => {
+    const fetcher = stubFetch();
+    const client = createMarketClient({ mode: "fixture", fetch: fetcher, now: () => instant });
+    const results = await client.search(query);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ symbol, companyName: `Synthetic ${symbol} Company`, source: "fixture" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
   it("loads and caches general market news without inventing related tickers", async () => {
     const fetcher = stubFetch({ "/api/v1/news": [{ id: 10, headline: "General market test", source: "Test", datetime: instant / 1_000, url: "https://example.com/general" }] });
     const client = createMarketClient({ mode: "finnhub", apiKey: "test", fetch: fetcher, now: () => instant });
