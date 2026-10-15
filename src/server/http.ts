@@ -56,7 +56,10 @@ export async function apiHandler(handler: () => Promise<Response>): Promise<Resp
     let status: number;
     const headers: Record<string, string> = { "Cache-Control": "no-store" };
     if (error instanceof z.ZodError) {
-      body = { code: "INVALID_INPUT", message: "Request validation failed" };
+      const fields = Object.fromEntries([...new Set(error.issues.flatMap((issue) =>
+        issue.path.length ? [String(issue.path[0])] : [],
+      ))].map((field) => [field, error.issues.filter((issue) => String(issue.path[0]) === field).map((issue) => issue.message)]));
+      body = { code: "INVALID_INPUT", message: "Request validation failed", ...(Object.keys(fields).length ? { fields } : {}) };
       status = 400;
     } else if (error instanceof AppError) {
       body = { code: error.code, message: error.message } as ApiError;

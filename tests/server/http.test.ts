@@ -30,4 +30,18 @@ describe("API boundary", () => {
     expect(await response.text()).not.toContain("secret-password");
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("secret-password");
   });
+
+  it("preserves field validation messages for forms without returning submitted values", async () => {
+    const schema = z.strictObject({ threshold: z.number().positive(), timezone: z.string().min(1) });
+    const response = await apiHandler(async () => {
+      schema.parse({ threshold: -1, timezone: "" });
+      return new Response();
+    });
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: false, error: { code: "INVALID_INPUT" } });
+    expect(body.error.fields.threshold).toEqual([expect.any(String)]);
+    expect(body.error.fields.timezone).toEqual([expect.any(String)]);
+    expect(body.error).not.toHaveProperty("input");
+  });
 });
