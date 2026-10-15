@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ApiError, ApiResult, StockNewsItem, StockQuote } from "@/contracts";
 import { Button } from "@/components/ui/button";
 
@@ -31,7 +31,7 @@ function safeNewsUrl(value: string) {
   }
 }
 
-function DataError({ error, retry }: { error: LoadError; retry: () => void }) {
+function DataError({ error, retry, subject }: { error: LoadError; retry: () => void; subject: string }) {
   const message = error.code === "UNAUTHENTICATED"
     ? "Войдите в аккаунт, чтобы увидеть данные рынка."
     : error.code === "RATE_LIMITED"
@@ -42,7 +42,7 @@ function DataError({ error, retry }: { error: LoadError; retry: () => void }) {
       <p role="alert" className="text-sm text-foreground">{message}</p>
       {error.code === "UNAUTHENTICATED"
         ? <Link href="/login" className="w-fit text-sm font-semibold text-primary underline">Войти</Link>
-        : <Button type="button" variant="outline" onClick={retry} className="w-fit">Повторить</Button>}
+        : <Button type="button" variant="outline" onClick={retry} aria-label={`Повторить: ${subject}`} className="w-fit">Повторить</Button>}
     </div>
   );
 }
@@ -50,6 +50,14 @@ function DataError({ error, retry }: { error: LoadError; retry: () => void }) {
 function QuoteRow({ symbol }: { symbol: DashboardSymbol }) {
   const [state, setState] = useState<QuoteState>({ status: "loading" });
   const [retry, setRetry] = useState(0);
+  const rowRef = useRef<HTMLLIElement>(null);
+  const restoreFocus = useRef(false);
+
+  useEffect(() => {
+    if (state.status === "loading" || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    if (document.activeElement === document.body) rowRef.current?.focus();
+  }, [state]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -76,13 +84,13 @@ function QuoteRow({ symbol }: { symbol: DashboardSymbol }) {
   }, [symbol, retry]);
 
   return (
-    <li className="border-b border-border py-4 last:border-0">
+    <li ref={rowRef} tabIndex={-1} className="border-b border-border py-4 last:border-0">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <Link href={`/stocks/${symbol}`} className="font-semibold text-primary underline-offset-4 hover:underline">{symbol}</Link>
         {state.status === "ready" && <span className="font-semibold tabular-nums text-foreground">{new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(state.quote.price)} {state.quote.currency}</span>}
       </div>
       {state.status === "loading" && <p role="status" className="mt-2 text-sm text-muted-foreground">Загружаем котировку {symbol}…</p>}
-      {state.status === "error" && <div className="mt-2"><DataError error={state.error} retry={() => { setState({ status: "loading" }); setRetry((value) => value + 1); }} /></div>}
+      {state.status === "error" && <div className="mt-2"><DataError error={state.error} subject={`котировка ${symbol}`} retry={() => { restoreFocus.current = true; setState({ status: "loading" }); setRetry((value) => value + 1); }} /></div>}
       {state.status === "ready" && (
         <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
           <p>Источник: {state.quote.source === "fixture" ? "синтетические данные (fixture)" : "Finnhub"}.</p>
@@ -107,6 +115,14 @@ export function DashboardQuotes() {
 export function DashboardNews() {
   const [state, setState] = useState<NewsState>({ status: "loading" });
   const [retry, setRetry] = useState(0);
+  const newsRef = useRef<HTMLDivElement>(null);
+  const restoreFocus = useRef(false);
+
+  useEffect(() => {
+    if (state.status === "loading" || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    if (document.activeElement === document.body) newsRef.current?.focus();
+  }, [state]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -133,9 +149,9 @@ export function DashboardNews() {
   }, [retry]);
 
   return (
-    <div>
+    <div ref={newsRef} tabIndex={-1}>
       {state.status === "loading" && <p role="status" className="text-sm text-muted-foreground">Загружаем новости AAPL…</p>}
-      {state.status === "error" && <DataError error={state.error} retry={() => { setState({ status: "loading" }); setRetry((value) => value + 1); }} />}
+      {state.status === "error" && <DataError error={state.error} subject="новости AAPL" retry={() => { restoreFocus.current = true; setState({ status: "loading" }); setRetry((value) => value + 1); }} />}
       {state.status === "ready" && (
         <>
           <p className="text-sm text-muted-foreground">

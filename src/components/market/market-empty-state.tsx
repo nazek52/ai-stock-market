@@ -9,13 +9,13 @@ type MarketEmptyStateProps = {
 
 const statusLabels = {
   empty: "Пока нет данных",
-  unavailable: "Источник не подключён",
+  unavailable: "Данные источника недоступны",
   error: "Источник временно недоступен",
 } as const;
 
 export function MarketEmptyState({ kind, title, description, action }: MarketEmptyStateProps) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-muted/40 p-5 sm:p-6">
+    <div role={kind === "empty" ? "status" : "alert"} className="min-w-0 rounded-xl border border-dashed border-border bg-muted/40 p-5 sm:p-6">
       <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{statusLabels[kind]}</span>
       <h3 className="mt-2 text-base font-semibold text-foreground">{title}</h3>
       <p className="mt-2 max-w-prose text-sm text-muted-foreground">{description}</p>

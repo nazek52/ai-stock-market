@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ApiError, ApiResult, StockSearchResult, WatchlistItem } from "@/contracts";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,13 +28,26 @@ function watchlistErrorMessage(error: ApiError): string {
 }
 
 export function StockSearch() {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const actionButton = useRef<HTMLButtonElement | null>(null);
+  const actionFeedback = useRef<HTMLParagraphElement>(null);
   const [query, setQuery] = useState("");
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<SearchState>({ status: "idle" });
   const [watchlist, setWatchlist] = useState<WatchlistState>({ status: "loading" });
   const [pendingSymbol, setPendingSymbol] = useState<string | null>(null);
   const [actionError, setActionError] = useState<{ symbol: string; message: string } | null>(null);
+  const [actionNotice, setActionNotice] = useState<{ symbol: string; message: string } | null>(null);
   const search = query.trim();
+
+  useEffect(() => {
+    if (pendingSymbol || !actionButton.current) return;
+    const button = actionButton.current;
+    actionButton.current = null;
+    if (document.activeElement !== document.body && document.activeElement !== button) return;
+    if (button.isConnected && !button.disabled) button.focus();
+    else actionFeedback.current?.focus();
+  }, [pendingSymbol]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -96,11 +109,13 @@ export function StockSearch() {
 
   const display = state.status !== "idle" && state.query === search ? state : { status: "idle" } as const;
 
-  async function toggleWatchlist(symbol: string) {
+  async function toggleWatchlist(symbol: string, button: HTMLButtonElement) {
     if (watchlist.status !== "ready" || pendingSymbol) return;
+    actionButton.current = button;
     const wasSaved = watchlist.symbols.has(symbol);
     setPendingSymbol(symbol);
     setActionError(null);
+    setActionNotice(null);
     try {
       const response = await fetch(wasSaved ? `/api/watchlist/${encodeURIComponent(symbol)}` : "/api/watchlist", {
         method: wasSaved ? "DELETE" : "POST",
@@ -111,6 +126,7 @@ export function StockSearch() {
       if (!payload.ok) {
         if (payload.error.code === "UNAUTHENTICATED") {
           setWatchlist({ status: "unauthenticated" });
+          setActionError({ symbol, message: "Сессия истекла. Войдите снова, чтобы управлять списком." });
         } else {
           setActionError({ symbol, message: watchlistErrorMessage(payload.error) });
         }
@@ -128,6 +144,7 @@ export function StockSearch() {
         else symbols.add(symbol);
         return { status: "ready", symbols };
       });
+      setActionNotice({ symbol, message: wasSaved ? `${symbol} удалён из списка.` : `${symbol} добавлен в список.` });
     } catch {
       setWatchlist({ status: "error" });
       setActionError({ symbol, message: "Изменение могло сохраниться. Обновите страницу, чтобы проверить список перед следующей попыткой." });
@@ -137,8 +154,8 @@ export function StockSearch() {
   }
 
   return (
-    <div className="grid max-w-3xl gap-5">
-      <Card>
+    <div className="grid min-w-0 max-w-3xl gap-5">
+      <Card className="min-w-0 [overflow-wrap:anywhere]">
         <CardHeader>
           <CardTitle><h2 className="m-0 text-lg">Найти акцию</h2></CardTitle>
           <CardDescription>Поиск акций США по тикеру или названию. Результаты предоставляет серверный рыночный источник.</CardDescription>
@@ -149,6 +166,7 @@ export function StockSearch() {
               <label htmlFor="stock-search" className="text-sm font-medium">Тикер или название компании</label>
               <input
                 id="stock-search"
+                ref={inputRef}
                 type="search"
                 value={query}
                 onChange={(event) => { setQuery(event.target.value); setActionError(null); }}
@@ -159,12 +177,14 @@ export function StockSearch() {
                 className="mt-2 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               />
             </div>
-            {query && <Button type="button" variant="outline" size="lg" onClick={() => { setQuery(""); setActionError(null); }}>Очистить</Button>}
+            {query && <Button type="button" variant="outline" size="lg" onClick={() => { setQuery(""); setActionError(null); inputRef.current?.focus(); }}>Очистить</Button>}
           </div>
         </CardContent>
       </Card>
 
-      <section id="stock-search-results" aria-labelledby="stock-search-results-title">
+      <p id="stock-search-action-feedback" ref={actionFeedback} tabIndex={-1} role={actionError ? "alert" : "status"} className={`text-sm ${actionError ? "text-destructive" : "text-muted-foreground"}`}>{actionError?.message ?? actionNotice?.message}</p>
+
+      <section id="stock-search-results" aria-labelledby="stock-search-results-title" className="min-w-0 [overflow-wrap:anywhere]" aria-busy={!!search && (display.status === "idle" || display.status === "loading")}>
         <h2 id="stock-search-results-title" className="mb-3 text-lg font-semibold">Результаты поиска</h2>
         {watchlist.status === "loading" && <p role="status" className="mb-3 text-sm text-muted-foreground">Загружаем ваш список отслеживания…</p>}
         {watchlist.status === "unauthenticated" && <p role="status" className="mb-3 text-sm text-muted-foreground">Чтобы сохранять акции, <Link href="/login" className="font-semibold text-primary underline">войдите в аккаунт</Link>.</p>}
@@ -216,14 +236,14 @@ export function StockSearch() {
                         aria-pressed={watchlist.status === "ready" ? watchlist.symbols.has(stock.symbol) : undefined}
                         aria-label={pendingSymbol === stock.symbol ? `Обновляем список для ${stock.symbol}` : watchlist.status === "ready" && watchlist.symbols.has(stock.symbol) ? `Удалить ${stock.symbol} из списка` : `Добавить ${stock.symbol} в список`}
                         aria-busy={pendingSymbol === stock.symbol}
-                        onClick={() => void toggleWatchlist(stock.symbol)}
+                        aria-describedby={actionError?.symbol === stock.symbol || actionNotice?.symbol === stock.symbol ? "stock-search-action-feedback" : undefined}
+                        onClick={(event) => void toggleWatchlist(stock.symbol, event.currentTarget)}
                         className="shrink-0 text-lg"
                       >
                         <span aria-hidden="true">{pendingSymbol === stock.symbol ? "…" : watchlist.status === "ready" && watchlist.symbols.has(stock.symbol) ? "★" : "☆"}</span>
                       </Button>
                     </div>
                     {pendingSymbol === stock.symbol && <p role="status" className="mt-2 text-sm text-muted-foreground">Обновляем список для {stock.symbol}…</p>}
-                    {actionError?.symbol === stock.symbol && <p role="alert" className="mt-2 text-sm text-destructive">{actionError.message}</p>}
                   </li>
                 ))}
               </ul>

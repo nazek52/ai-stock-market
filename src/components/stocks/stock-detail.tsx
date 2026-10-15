@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MarketEmptyState } from "@/components/market/market-empty-state";
 import { TradingViewStockChart } from "@/components/market/tradingview-widgets";
@@ -40,8 +40,8 @@ async function read<T>(symbol: string, resource: "company" | "quote" | "news", s
 
 function stateFor<T>(result: ReadResult<T>, subject: string) {
   if ("data" in result) return null;
-  if (result.error.code === "RATE_LIMITED") return <MarketEmptyState kind="error" title="Лимит запросов исчерпан" description={`${subject} временно недоступны. Попробуйте позже.`} />;
-  return <MarketEmptyState kind="unavailable" title={`${subject} недоступны`} description="Источник данных сейчас не отвечает. Попробуйте обновить страницу позже." />;
+  if (result.error.code === "RATE_LIMITED") return <MarketEmptyState kind="error" title="Лимит запросов исчерпан" description={`Не удалось загрузить: ${subject.toLowerCase()}. Попробуйте позже.`} />;
+  return <MarketEmptyState kind="unavailable" title={`Не удалось загрузить: ${subject.toLowerCase()}`} description="Источник данных сейчас не отвечает. Попробуйте обновить страницу позже." />;
 }
 
 function safeUrl(value: string) {
@@ -58,9 +58,21 @@ export function StockDetail({ symbol }: { symbol: string }) {
 }
 
 function StockDetailForSymbol({ symbol }: { symbol: string }) {
+  const actionButton = useRef<HTMLButtonElement | null>(null);
+  const actionFeedback = useRef<HTMLParagraphElement>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [watchlist, setWatchlist] = useState<WatchlistState>({ status: "loading", included: false });
   const [watchlistPending, setWatchlistPending] = useState(false);
+  const [watchlistNotice, setWatchlistNotice] = useState("");
+
+  useEffect(() => {
+    if (watchlistPending || !actionButton.current) return;
+    const button = actionButton.current;
+    actionButton.current = null;
+    if (document.activeElement !== document.body && document.activeElement !== button) return;
+    if (button.isConnected && !button.disabled) button.focus();
+    else actionFeedback.current?.focus();
+  }, [watchlistPending]);
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
@@ -84,8 +96,10 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
     return () => controller.abort();
   }, [symbol]);
 
-  async function changeWatchlist() {
+  async function changeWatchlist(button: HTMLButtonElement) {
     if (watchlist.status !== "ready" || watchlistPending) return;
+    actionButton.current = button;
+    setWatchlistNotice("");
     setWatchlistPending(true);
     setWatchlist((current) => ({ ...current, message: undefined }));
     try {
@@ -98,6 +112,7 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
         if (result.ok) {
           if (!response.ok || typeof result.data?.deleted !== "boolean") throw new Error("Invalid delete response");
           setWatchlist({ status: "ready", included: false });
+          setWatchlistNotice(`${symbol} удалён из списка.`);
         }
         else if (result.error.code === "UNAUTHENTICATED") setWatchlist((current) => ({ ...current, status: "unauthenticated", message: "Сессия истекла. Войдите снова." }));
         else setWatchlist((current) => ({ ...current, message: "Не удалось удалить акцию. Попробуйте снова." }));
@@ -106,6 +121,7 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
         if (result.ok) {
           if (!response.ok || result.data?.symbol !== symbol) throw new Error("Invalid watchlist response");
           setWatchlist({ status: "ready", included: true });
+          setWatchlistNotice(`${symbol} добавлен в список.`);
         }
         else if (result.error.code === "UNAUTHENTICATED") setWatchlist((current) => ({ ...current, status: "unauthenticated", message: "Сессия истекла. Войдите снова." }));
         else setWatchlist((current) => ({ ...current, message: result.error.code === "CONFLICT" ? "Список заполнен: можно сохранить не более 50 акций." : "Не удалось добавить акцию. Попробуйте снова." }));
@@ -143,8 +159,8 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
       {!authRequired && !missing && detail && <>
         {fixture && <p className="mb-5 rounded-xl border border-border bg-muted px-5 py-4 text-sm" role="status">Это синтетические тестовые данные. Цены и новости не отражают реальные события рынка.</p>}
         <div className="grid min-w-0 gap-5 lg:grid-cols-2">
-          <section aria-labelledby="price-heading">
-            <Card className="h-full">
+          <section aria-labelledby="price-heading" className="min-w-0 [overflow-wrap:anywhere]">
+            <Card className="h-full min-w-0">
               <CardHeader><CardTitle><h2 id="price-heading" className="m-0 text-base">Цена и изменение</h2></CardTitle><CardDescription>Источник: {quote?.source === "fixture" ? "синтетическая фикстура" : quote?.source === "finnhub" ? "Finnhub" : "нет данных"}</CardDescription></CardHeader>
               <CardContent>{quote ? <div>
                 <p className="text-3xl font-semibold">{money.format(quote.price)}</p>
@@ -153,8 +169,8 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
               </div> : stateFor(detail.quote, "Котировка")}</CardContent>
             </Card>
           </section>
-          <section aria-labelledby="company-heading">
-            <Card className="h-full">
+          <section aria-labelledby="company-heading" className="min-w-0 [overflow-wrap:anywhere]">
+            <Card className="h-full min-w-0">
               <CardHeader><CardTitle><h2 id="company-heading" className="m-0 text-base">О компании</h2></CardTitle><CardDescription>Источник: {company?.source === "fixture" ? "синтетическая фикстура" : company?.source === "finnhub" ? "Finnhub" : "нет данных"}</CardDescription></CardHeader>
               <CardContent>{company ? <div className="space-y-2 text-sm">
                 <p>Биржа: {company.exchange ?? "нет данных"}</p><p>Отрасль: {company.industry ?? "нет данных"}</p>
@@ -171,7 +187,7 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
                 : <p role="status" className="text-sm">Для графика нужны данные компании и её биржа. Попробуйте обновить страницу позже.</p>}</CardContent>
             </Card>
           </section>
-          <section aria-labelledby="news-heading" className="lg:col-span-2">
+          <section aria-labelledby="news-heading" className="min-w-0 [overflow-wrap:anywhere] lg:col-span-2">
             <Card>
               <CardHeader><CardTitle><h2 id="news-heading" className="m-0 text-base">Новости</h2></CardTitle><CardDescription>{news === null ? "Источник новостей: нет данных" : `Публикации из ${fixture ? "синтетической фикстуры" : "серверного источника Finnhub"}`}</CardDescription></CardHeader>
               <CardContent>{news === null ? stateFor(detail.news, "Новости") : news.length === 0 ? <MarketEmptyState kind="empty" title="Новостей нет" description="За доступный период источник не вернул публикаций." /> : <ul>{news.map((item) => <li key={item.id} className="border-b border-border py-3 last:border-b-0">
@@ -183,11 +199,11 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
           </section>
         </div>
         <section className="mt-5" aria-labelledby="watchlist-heading"><Card><CardHeader><CardTitle><h2 id="watchlist-heading" className="m-0 text-base">Мой список</h2></CardTitle></CardHeader><CardContent className="flex flex-wrap items-center gap-3">
-          {watchlist.status === "ready" && <button type="button" className="button button-primary" disabled={watchlistPending} onClick={changeWatchlist}>{watchlistPending ? "Сохраняем…" : watchlist.included ? "Убрать из списка" : "Добавить в список"}</button>}
+          {watchlist.status === "ready" && <button type="button" className="button button-primary" disabled={watchlistPending} aria-busy={watchlistPending} aria-describedby="stock-watchlist-feedback" onClick={(event) => void changeWatchlist(event.currentTarget)}>{watchlistPending ? "Сохраняем…" : watchlist.included ? "Убрать из списка" : "Добавить в список"}</button>}
           {watchlist.status === "loading" && <p role="status" className="text-sm">Проверяем список…</p>}
           {watchlist.status === "unauthenticated" && <Link className="button button-primary" href="/login">Войти, чтобы управлять списком</Link>}
           <Link className="button button-outline" href="/watchlist">Открыть раздел списка</Link>
-          {watchlist.message && <p role="alert" className="w-full text-sm text-destructive">{watchlist.message}</p>}
+          <p id="stock-watchlist-feedback" ref={actionFeedback} tabIndex={-1} role={watchlist.message ? "alert" : "status"} className={`w-full text-sm ${watchlist.message ? "text-destructive" : "text-muted-foreground"}`}>{watchlist.message ?? watchlistNotice}</p>
         </CardContent></Card></section>
       </>}
     </AppShell>
