@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DemoModeProvider } from "@/components/demo-mode";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,5 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="ru"><body>{children}</body></html>;
+  const demoMode = process.env.LOCAL_DEMO === "true" && process.env.NODE_ENV !== "production";
+  return <html lang="ru"><body><DemoModeProvider enabled={demoMode}>{children}</DemoModeProvider></body></html>;
 }

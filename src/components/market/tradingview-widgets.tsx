@@ -59,8 +59,16 @@ function TradingViewEmbed({
   className?: string;
 }) {
   const widgetRef = useRef<HTMLDivElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+  const restoreFocus = useRef(false);
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+
+  useEffect(() => {
+    if (state === "loading" || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    if (document.activeElement === document.body) sectionRef.current?.focus();
+  }, [state]);
 
   useEffect(() => {
     const widget = widgetRef.current;
@@ -124,14 +132,14 @@ function TradingViewEmbed({
   }, [attempt, config, scriptName, title]);
 
   return (
-    <section className={className} aria-label={title}>
+    <section ref={sectionRef} tabIndex={-1} className={className} aria-label={title}>
       <div className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-card" style={{ height }} aria-busy={state === "loading"}>
         <div ref={widgetRef} className="tradingview-widget-container h-full w-full" style={{ visibility: state === "ready" ? "visible" : "hidden" }} />
         {state === "loading" && <p role="status" className="absolute inset-0 grid place-items-center p-4 text-center text-sm text-muted-foreground">Загружается виджет TradingView…</p>}
         {state === "error" && (
           <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-5 text-center">
             <p className="text-sm text-foreground">Виджет TradingView сейчас недоступен.</p>
-            <Button type="button" variant="outline" onClick={() => { setState("loading"); setAttempt((value) => value + 1); }}>Повторить загрузку</Button>
+            <Button type="button" variant="outline" aria-label={`Повторить загрузку: ${title}`} onClick={() => { restoreFocus.current = true; setState("loading"); setAttempt((value) => value + 1); }}>Повторить загрузку</Button>
           </div>
         )}
       </div>

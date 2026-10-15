@@ -8,6 +8,8 @@ import {
 } from "@/components/market/tradingview-widgets";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+export const metadata = { title: "Обзор рынка | AI Stock Market" };
+
 export default function Home() {
   return (
     <AppShell active="Обзор">

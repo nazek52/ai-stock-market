@@ -21,6 +21,7 @@ export function ResetPasswordForm() {
   const passwordRef = useRef<HTMLInputElement>(null);
   const confirmationRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLParagraphElement>(null);
+  const completionRef = useRef<HTMLDivElement>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,6 +49,7 @@ export function ResetPasswordForm() {
         return;
       }
       setComplete(true);
+      requestAnimationFrame(() => completionRef.current?.focus());
       window.history.replaceState(null, "", "/reset-password");
     } catch {
       setFormError("Не удалось завершить запрос. Проверьте соединение и повторите попытку.");
@@ -60,13 +62,13 @@ export function ResetPasswordForm() {
   return (
     <>
       <a className="skip-link" href="#main">Перейти к содержимому</a>
-      <main id="main" className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-6 px-4 py-12 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto flex min-h-screen min-w-0 w-full max-w-lg flex-col justify-center gap-6 px-4 py-12 sm:px-6">
         <Link href="/login" className="w-fit text-sm font-semibold text-primary hover:underline">← К входу</Link>
-        <Card className="py-8 sm:py-10">
-          <CardHeader className="px-6 sm:px-8"><CardTitle><h1 className="text-3xl">Сменить пароль</h1></CardTitle></CardHeader>
+        <Card className="min-w-0 py-8 sm:py-10">
+          <CardHeader className="px-6 sm:px-8"><CardTitle><h1 id="reset-password-title" className="text-3xl">Сменить пароль</h1></CardTitle></CardHeader>
           <CardContent className="px-6 sm:px-8">
             {complete ? (
-              <div role="status" className="grid gap-4">
+              <div ref={completionRef} tabIndex={-1} role="status" className="grid gap-4">
                 <p>Пароль изменён. Прежние сессии отозваны. Войдите с новым паролем.</p>
                 <Link href="/login" className="w-fit font-semibold text-primary underline">Войти</Link>
               </div>
@@ -76,16 +78,16 @@ export function ResetPasswordForm() {
                 <Link href="/login" className="w-fit font-semibold text-primary underline">Перейти к входу</Link>
               </div>
             ) : (
-              <form noValidate onSubmit={submit} className="grid gap-4">
+              <form noValidate onSubmit={submit} aria-busy={pending} aria-labelledby="reset-password-title" className="grid min-w-0 gap-4">
                 <p>Введите новый пароль длиной от 12 до 128 символов.</p>
                 <div>
                   <label htmlFor="new-password" className="text-sm font-medium">Новый пароль</label>
-                  <input id="new-password" ref={passwordRef} type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(""); }} aria-invalid={!!passwordError} aria-describedby={passwordError ? "new-password-error" : undefined} className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
+                  <input disabled={pending} id="new-password" ref={passwordRef} type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(""); }} aria-invalid={!!passwordError} aria-describedby={passwordError ? "new-password-error" : undefined} className="mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
                   {passwordError && <p id="new-password-error" className="mt-1 text-sm text-destructive">{passwordError}</p>}
                 </div>
                 <div>
                   <label htmlFor="confirm-new-password" className="text-sm font-medium">Повторите пароль</label>
-                  <input id="confirm-new-password" ref={confirmationRef} type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setConfirmationError(""); }} aria-invalid={!!confirmationError} aria-describedby={confirmationError ? "confirm-new-password-error" : undefined} className="mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
+                  <input disabled={pending} id="confirm-new-password" ref={confirmationRef} type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setConfirmationError(""); }} aria-invalid={!!confirmationError} aria-describedby={confirmationError ? "confirm-new-password-error" : undefined} className="mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
                   {confirmationError && <p id="confirm-new-password-error" className="mt-1 text-sm text-destructive">{confirmationError}</p>}
                 </div>
                 <Button type="submit" disabled={pending} className="w-fit">{pending ? "Сохраняем…" : "Сменить пароль"}</Button>

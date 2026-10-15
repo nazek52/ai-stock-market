@@ -31,11 +31,11 @@ export function SessionActions() {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex min-w-0 max-w-full flex-col items-end gap-1">
       {isPending ? (
         <span className="topbar-badge" role="status">Проверяем вход…</span>
       ) : sessionError ? (
-        <div role="alert" className="flex items-center gap-2 text-xs text-destructive">
+        <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-destructive">
           Не удалось проверить вход.
           <Button type="button" variant="outline" onClick={() => void refetch()}>Повторить</Button>
         </div>

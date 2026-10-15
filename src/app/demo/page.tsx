@@ -5,6 +5,8 @@ import { AlertScenario } from "@/components/demo/alert-scenario";
 import { DigestScenario } from "@/components/demo/digest-scenario";
 import { getSession } from "@/server/auth/session";
 
+export const metadata = { title: "Демонстрация архитектуры | AI Stock Market" };
+
 export const dynamic = "force-dynamic";
 
 export default async function DemoPage() {

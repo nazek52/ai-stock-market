@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiResult, DigestPreference } from "@/contracts";
@@ -14,13 +14,22 @@ const reasons: Record<string, string> = {
 };
 
 export function DigestScenario() {
+  const actionButton = useRef<HTMLButtonElement | null>(null);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<DemoDigestResult | null>(null);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
 
-  async function send() {
+  useEffect(() => {
+    if (pending || !actionButton.current) return;
+    const button = actionButton.current;
+    actionButton.current = null;
+    if (document.activeElement === document.body || document.activeElement === button) button.focus();
+  }, [pending]);
+
+  async function send(button: HTMLButtonElement) {
     if (pending) return;
+    actionButton.current = button;
     setPending(true); setError(""); setNotice("");
     try {
       const response = await fetch("/api/demo/digest", { method: "POST", credentials: "same-origin", cache: "no-store",
@@ -37,8 +46,9 @@ export function DigestScenario() {
     finally { setPending(false); }
   }
 
-  async function optOut() {
+  async function optOut(button: HTMLButtonElement) {
     if (pending) return;
+    actionButton.current = button;
     setPending(true); setError(""); setNotice("");
     try {
       const currentResponse = await fetch("/api/preferences/digest", { credentials: "same-origin", cache: "no-store" });
@@ -62,20 +72,22 @@ export function DigestScenario() {
     return "Результат SMTP не определён. Автоматической повторной отправки нет; проверьте Mailpit и локальный журнал.";
   }
 
-  return <Card className="max-w-3xl">
+  return <Card className="min-w-0 max-w-3xl [overflow-wrap:anywhere]">
     <CardHeader><CardTitle><h2 className="m-0 text-lg">Ежедневная сводка в Mailpit</h2></CardTitle>
       <CardDescription>Синтетические новости и детерминированная сводка без обращения к LLM. Один выпуск на вашу локальную дату; повтор не создаёт второго письма. Глобальное расписание остаётся выключенным.</CardDescription>
     </CardHeader>
-    <CardContent className="grid gap-4">
+    <CardContent className="grid min-w-0 gap-4">
       <p className="text-sm">Подтвердите email и явно включите согласие в <Link href="/settings" className="underline">настройках рассылки</Link>. Ручной запуск пропускает ожидание выбранного времени, сохраняя согласие и дневной ключ.</p>
-      <div className="flex flex-wrap gap-3">
-        <Button onClick={() => void send()} disabled={pending}>{pending ? "Проверяем…" : "Отправить ежедневную сводку в Mailpit"}</Button>
-        <Button variant="outline" onClick={() => void optOut()} disabled={pending}>Отключить ежедневную сводку</Button>
+      <div className="flex min-w-0 flex-wrap gap-3">
+        <Button onClick={(event) => void send(event.currentTarget)} disabled={pending} aria-describedby="digest-scenario-feedback">{pending ? "Проверяем…" : "Отправить ежедневную сводку в Mailpit"}</Button>
+        <Button variant="outline" onClick={(event) => void optOut(event.currentTarget)} disabled={pending} aria-describedby="digest-scenario-feedback">Отключить ежедневную сводку</Button>
       </div>
+      <div id="digest-scenario-feedback" className="grid min-w-0 gap-3">
       {pending && <p role="status" className="text-sm">Обрабатываем запрос…</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {notice && <p role="status" className="text-sm">{notice}</p>}
       {result && <div role="status" className="rounded-lg border border-border p-4 text-sm"><p>{resultText(result)}</p><p className="mt-2">Источник: fixture. Дата выпуска: {result.localDate ?? "не определена"}. Статус: {result.status}.</p></div>}
+      </div>
       <p className="text-sm">Проверьте также ссылку «Отключить ежедневную сводку» внутри письма: открытие показывает подтверждение, а кнопка на этой странице отключает рассылку.</p>
       <a href="http://127.0.0.1:8025" target="_blank" rel="noopener noreferrer" className="w-fit text-sm underline">Открыть локальный Mailpit</a>
     </CardContent>

@@ -40,6 +40,7 @@ check запускает lint, TypeScript, unit-тесты и production build. 
 
 - [Полный план v1.2](docs/implementation-plan.md) и [PDF для чтения](docs/implementation-plan.pdf).
 - [Аудит всех 47 задач](docs/plan-audit.md): файлы, тесты, фактические локальные письма и границы UI-проверки.
+- [Адаптивность и доступность](docs/responsive-accessibility-audit.md): матрица экранов, клавиатура, исправления и границы проверки масштаба.
 - [Сценарий локального демо](docs/local-demo.md), [решения владельца](docs/product-decisions.md), [совместная интеграция A+B](docs/tasks/integration-ab.md).
 - [Правила агентов](AGENTS.md), [роли и контракты](agents/README.md), [рабочий контракт B](docs/tasks/participant-b.md).
 - [Сервисные решения](docs/service-setup.md), [проверка зависимостей](docs/dependency-audit.md), [состояние B](docs/participant-b-progress.md).

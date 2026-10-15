@@ -2,6 +2,8 @@ import { AppShell } from "@/components/app-shell";
 import { AlertRules } from "@/components/alerts/alert-rules";
 import { getServerEnvironment } from "@/server/config";
 
+export const metadata = { title: "Правила уведомлений | AI Stock Market" };
+
 export const dynamic = "force-dynamic";
 
 export default function AlertsPage() {

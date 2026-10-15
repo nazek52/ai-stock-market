@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError, ApiResult, StockQuote, WatchlistItem } from "@/contracts";
@@ -86,6 +86,26 @@ export function Watchlist() {
   const [revision, setRevision] = useState(0);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const deleteTriggerRef = useRef<HTMLElement | null>(null);
+  const cancelDeleteRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (confirmDelete) cancelDeleteRef.current?.focus();
+  }, [confirmDelete]);
+
+  function cancelDelete() {
+    if (pendingDelete) return;
+    setConfirmDelete(null);
+    requestAnimationFrame(() => (deleteTriggerRef.current?.isConnected ? deleteTriggerRef.current : headingRef.current)?.focus());
+  }
+
+  function changePage(nextPage: number) {
+    setConfirmDelete(null);
+    setPage(nextPage);
+    requestAnimationFrame(() => headingRef.current?.focus());
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -94,8 +114,13 @@ export function Watchlist() {
         if (controller.signal.aborted) return;
         setPage((current) => Math.min(current, Math.max(0, Math.ceil(items.length / PAGE_SIZE) - 1)));
         setList({ kind: "ready", items });
+        if (revision) requestAnimationFrame(() => headingRef.current?.focus());
       })
-      .catch((error: unknown) => { if (!controller.signal.aborted) setList({ kind: "error", error: apiError(error) }); });
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setList({ kind: "error", error: apiError(error) });
+        if (revision) requestAnimationFrame(() => headingRef.current?.focus());
+      });
     return () => controller.abort();
   }, [revision]);
 
@@ -134,13 +159,14 @@ export function Watchlist() {
   function refresh() {
     if (pendingDelete) return;
     setMessage(null);
+    setConfirmDelete(null);
     setQuotes({});
     setList({ kind: "loading" });
     setRevision((value) => value + 1);
   }
 
   async function remove(symbol: string) {
-    if (pendingDelete || list.kind !== "ready") return;
+    if (pendingDelete || list.kind !== "ready" || confirmDelete !== symbol) return;
     setPendingDelete(symbol);
     setMessage(null);
     let deleteAccepted = false;
@@ -165,37 +191,48 @@ export function Watchlist() {
       }
     } finally {
       setPendingDelete(null);
+      setConfirmDelete(null);
+      requestAnimationFrame(() => headingRef.current?.focus());
     }
   }
 
-  return <div className="grid gap-5">
-    {message && <div role={message.kind === "error" ? "alert" : "status"} className={`rounded-lg border p-4 text-sm ${message.kind === "error" ? "border-destructive text-destructive" : "border-border bg-muted text-foreground"}`}>{message.text}</div>}
+  return <div className="grid min-w-0 gap-5 break-words" onKeyDown={(event) => {
+    if (event.key === "Escape" && confirmDelete && !pendingDelete) {
+      event.preventDefault(); event.stopPropagation(); cancelDelete();
+    }
+  }}>
+    <h2 ref={headingRef} tabIndex={-1} className="sr-only focus:not-sr-only">Список наблюдения{list.kind === "ready" ? `: ${list.items.length} акций, страница ${page + 1} из ${Math.max(1, pageCount)}` : ""}</h2>
+    <div role={message?.kind === "error" ? "alert" : "status"} aria-atomic="true" className={message ? `rounded-lg border p-4 text-sm ${message.kind === "error" ? "border-destructive text-destructive" : "border-border bg-muted text-foreground"}` : "sr-only"}>{message?.text}</div>
     {list.kind === "loading" && <p role="status">Загружаем список…</p>}
     {list.kind === "error" && <Card><CardContent className="grid gap-4"><p role="alert" className="text-sm">{errorText(list.error, "открыть список")}</p><div className="flex flex-wrap gap-3">{list.error.code === "UNAUTHENTICATED" && <Link className="button button-primary" href="/login">Войти</Link>}<Button type="button" variant="outline" onClick={refresh}>Повторить</Button></div></CardContent></Card>}
     {list.kind === "ready" && list.items.length === 0 && <Card><CardContent className="grid gap-4"><p>В вашем списке пока нет акций.</p><Link className="button button-primary w-fit" href="/search">Найти акцию</Link></CardContent></Card>}
     {list.kind === "ready" && list.items.length > 0 && <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <p className="text-sm text-muted-foreground">Акций в списке: {list.items.length}</p>
-        <div className="flex flex-wrap items-end gap-3">
-          <div><label htmlFor="watchlist-sort" className="block text-sm font-medium">Сортировка</label><select id="watchlist-sort" value={sort} onChange={(event) => { setSort(event.target.value as SortOrder); setPage(0); }} className="mt-1 min-h-10 rounded-lg border border-input bg-background px-3 text-sm"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option><option value="symbol">По тикеру</option><option value="company">По компании</option></select></div>
+        <div className="flex min-w-0 flex-wrap items-end gap-3">
+          <div className="min-w-0 max-w-full"><label htmlFor="watchlist-sort" className="block text-sm font-medium">Сортировка</label><select id="watchlist-sort" value={sort} disabled={!!pendingDelete} onChange={(event) => { setSort(event.target.value as SortOrder); setPage(0); setConfirmDelete(null); }} className="mt-1 min-h-11 max-w-full rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option><option value="symbol">По тикеру</option><option value="company">По компании</option></select></div>
           <Button type="button" variant="outline" onClick={refresh} disabled={!!pendingDelete}>Обновить котировки</Button>
         </div>
       </div>
-      <ul className="grid gap-4">
-        {visibleItems.map((item) => <li key={item.id}>
+      <ul className="grid min-w-0 gap-4">
+        {visibleItems.map((item) => <li key={item.id} className="min-w-0">
           <Card>
             <CardHeader className="gap-1">
               <CardTitle><h2 className="m-0 text-base"><Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="text-primary underline-offset-4 hover:underline">{item.symbol}</Link> · {item.companyName}</h2></CardTitle>
               <p className="text-xs text-muted-foreground">Добавлено <time dateTime={item.createdAt}>{safeDate(item.createdAt)}</time></p>
             </CardHeader>
-            <CardContent className="flex flex-wrap items-end justify-between gap-4">
+            <CardContent className="flex min-w-0 flex-wrap items-end justify-between gap-4">
               <QuoteCell state={quotes[item.symbol]} />
-              <Button type="button" variant="outline" disabled={!!pendingDelete} onClick={() => void remove(item.symbol)} aria-label={`Удалить ${item.symbol} из списка`}>{pendingDelete === item.symbol ? "Удаляем…" : "Удалить"}</Button>
+              <Button type="button" variant="outline" disabled={!!pendingDelete} onClick={(event) => { deleteTriggerRef.current = event.currentTarget; setConfirmDelete(item.symbol); }} aria-label={`Удалить ${item.symbol} из списка`} aria-expanded={confirmDelete === item.symbol} aria-controls={confirmDelete === item.symbol ? `watchlist-delete-${item.symbol}` : undefined}>Удалить</Button>
+              {confirmDelete === item.symbol && <div id={`watchlist-delete-${item.symbol}`} role="group" aria-labelledby={`watchlist-delete-question-${item.symbol}`} className="grid w-full min-w-0 gap-2 rounded-lg border border-destructive p-3">
+                <p id={`watchlist-delete-question-${item.symbol}`}>Удалить {item.symbol} из списка наблюдения? Акцию можно добавить снова через поиск.</p>
+                <div className="flex flex-wrap gap-2"><Button type="button" variant="destructive" onClick={() => void remove(item.symbol)} disabled={!!pendingDelete} aria-label={`Подтвердить удаление ${item.symbol} из списка`}>{pendingDelete === item.symbol ? "Удаляем…" : "Подтвердить удаление"}</Button><Button ref={cancelDeleteRef} type="button" variant="outline" onClick={cancelDelete} disabled={!!pendingDelete}>Отмена</Button></div>
+              </div>}
             </CardContent>
           </Card>
         </li>)}
       </ul>
-      {pageCount > 1 && <nav aria-label="Страницы списка" className="flex items-center justify-between gap-3"><Button type="button" variant="outline" disabled={page === 0 || !!pendingDelete} onClick={() => setPage((value) => value - 1)}>Назад</Button><span className="text-sm text-muted-foreground">Страница {page + 1} из {pageCount}</span><Button type="button" variant="outline" disabled={page + 1 >= pageCount || !!pendingDelete} onClick={() => setPage((value) => value + 1)}>Вперёд</Button></nav>}
+      {pageCount > 1 && <nav aria-label="Страницы списка" className="flex flex-wrap items-center justify-between gap-3"><Button type="button" variant="outline" disabled={page === 0 || !!pendingDelete} onClick={() => changePage(page - 1)}>Назад</Button><span className="text-sm text-muted-foreground">Страница {page + 1} из {pageCount}</span><Button type="button" variant="outline" disabled={page + 1 >= pageCount || !!pendingDelete} onClick={() => changePage(page + 1)}>Вперёд</Button></nav>}
     </>}
   </div>;
 }

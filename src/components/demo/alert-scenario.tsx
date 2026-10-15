@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiResult } from "@/contracts";
@@ -8,12 +8,23 @@ import type { DemoScenarioResult } from "@/server/demo/scenario";
 
 export function AlertScenario() {
   const requestId = useRef<string | null>(null);
+  const actionButton = useRef<HTMLButtonElement | null>(null);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<DemoScenarioResult | null>(null);
   const [error, setError] = useState("");
 
-  async function run() {
+  useEffect(() => {
+    if (pending || !actionButton.current) return;
+    const button = actionButton.current;
+    actionButton.current = null;
+    // Native disabled buttons can move focus to body. Respect a user who has
+    // already moved to another control while the request was in flight.
+    if (document.activeElement === document.body || document.activeElement === button) button.focus();
+  }, [pending]);
+
+  async function run(button: HTMLButtonElement) {
     if (pending || result) return;
+    actionButton.current = button;
     requestId.current ??= crypto.randomUUID();
     setPending(true);
     setError("");
@@ -38,17 +49,17 @@ export function AlertScenario() {
     } finally { setPending(false); }
   }
 
-  return <Card className="max-w-3xl">
+  return <Card className="min-w-0 max-w-3xl [overflow-wrap:anywhere]">
     <CardHeader>
       <CardTitle><h2 className="m-0 text-lg">Синтетическое пересечение порога</h2></CardTitle>
       <CardDescription>Только локальная демонстрация: временное правило AAPL «выше 100 USD», наблюдение 99 → 101 USD и одно письмо в Mailpit. Эти цены вымышлены. Ваши существующие правила не изменяются.</CardDescription>
     </CardHeader>
-    <CardContent className="grid gap-4">
+    <CardContent className="grid min-w-0 gap-4">
       <p className="text-sm">Сначала подтвердите email по ссылке в Mailpit. Сценарий использует обычный движок правил, журнал событий и почтовый адаптер. Временное правило удаляется после обработки; история сохраняется.</p>
-      <Button className="w-fit" onClick={() => void run()} disabled={pending || !!result}>{pending ? "Выполняем…" : error ? "Проверить тот же запуск" : "Запустить 99 → 101 и отправить в Mailpit"}</Button>
+      <Button className="w-fit max-w-full" onClick={(event) => void run(event.currentTarget)} disabled={pending} aria-disabled={!!result} aria-describedby={error ? "alert-scenario-error" : result ? "alert-scenario-result" : undefined}>{pending ? "Выполняем…" : result ? "Сценарий завершён" : error ? "Проверить тот же запуск" : "Запустить 99 → 101 и отправить в Mailpit"}</Button>
       {pending && <p role="status">Проверяем переход и записываем результат доставки…</p>}
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      {result && <div role="status" className="rounded-lg border border-border p-4 text-sm">
+      {error && <p id="alert-scenario-error" role="alert" className="text-sm text-destructive">{error}</p>}
+      {result && <div id="alert-scenario-result" role="status" className="min-w-0 rounded-lg border border-border p-4 text-sm">
         <p>Источник: fixture. Цена: {result.fromPrice} → {result.toPrice} USD. Создано событий: {result.eventsCreated}. Временное правило удалено.</p>
         <p className="mt-2">{result.status === "sent" ? "Mailpit принял письмо. Внешнему адресату оно не доставляется." : `Статус доставки: ${result.status}. Успешная отправка не подтверждена; автоматического повтора нет.`}</p>
       </div>}
