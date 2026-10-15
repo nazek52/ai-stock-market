@@ -28,7 +28,7 @@ async function available(port) {
   await new Promise((resolve, reject) => {
     const server = createServer();
     server.once("error", () => reject(new Error(`Port ${port} is occupied. Use npm run demo -- --port 3100; existing processes were preserved.`)));
-    server.listen({ port, host: "0.0.0.0" }, () => server.close(resolve));
+    server.listen({ port, host: "::", ipv6Only: false }, () => server.close(resolve));
   });
 }
 
@@ -70,8 +70,8 @@ async function main() {
     await run("docker", ["compose", "--profile", "jobs", "up", "-d", "inngest"]);
     if (stopping) return;
     console.log(`\nLocal demo: http://localhost:${port}\nMailpit: http://127.0.0.1:8025\nInngest: http://127.0.0.1:8288\nSynthetic market/AI; isolated ai_stock_market_demo database. No cloud accounts required.\n`);
-    // The host binding lets the isolated Docker jobs service call this development server.
-    await run(process.execPath, [fileURLToPath(new URL("../node_modules/next/dist/bin/next", import.meta.url)), "dev", "--hostname", "0.0.0.0", "--port", String(port)]);
+    // Dual stack: localhost may resolve to ::1 in the browser; Docker uses IPv4 host-gateway.
+    await run(process.execPath, [fileURLToPath(new URL("../node_modules/next/dist/bin/next", import.meta.url)), "dev", "--hostname", "::", "--port", String(port)]);
   } finally {
     process.removeListener("SIGINT", stop);
     process.removeListener("SIGTERM", stop);

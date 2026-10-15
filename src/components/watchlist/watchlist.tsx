@@ -158,8 +158,11 @@ export function Watchlist() {
       setMessage({ kind: "success", text: result.data.deleted ? `${symbol} удалён из списка.` : `${symbol} уже отсутствует в списке.` });
     } catch (error) {
       setMessage({ kind: "error", text: errorText(apiError(error), "изменить список") });
-      // A failed DELETE leaves the confirmed list intact. A failed confirmation GET does not.
-      if (deleteAccepted) setList({ kind: "error", error: apiError(error) });
+      // A lost response may follow a committed DELETE; require a fresh server list.
+      if (deleteAccepted || !(error && typeof error === "object" && "code" in error)) {
+        setList({ kind: "error", error: apiError(error) });
+        setMessage({ kind: "error", text: "Удаление могло сохраниться. Обновите список, чтобы проверить текущее состояние." });
+      }
     } finally {
       setPendingDelete(null);
     }

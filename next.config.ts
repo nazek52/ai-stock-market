@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   output: "standalone",
   agentRules: false,
   poweredByHeader: false,
+  // Start with a fresh development graph to avoid the observed post-build reload loop.
+  experimental: { turbopackFileSystemCacheForDev: false },
   turbopack: {
     rules: {
       "*.css": { loaders: ["@tailwindcss/turbopack"], as: "*.css" },

@@ -27,6 +27,8 @@ export interface NotificationRequest {
 export interface RenderedEmail { subject: string; html: string; text: string }
 export interface DeliveryResult {
   status: DeliveryStatus;
+  /** Existing journal outcome, not a new SMTP attempt. */
+  replayed?: boolean;
   reason?: string;
   preview?: RenderedEmail;
 }

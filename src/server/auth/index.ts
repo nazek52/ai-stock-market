@@ -1,10 +1,21 @@
 import "server-only";
 import { betterAuth } from "better-auth/minimal";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
+import { APIError } from "better-auth/api";
+import { z } from "zod";
 import { getAuthConfig, getServerEnvironment } from "@/server/config";
 import { getDatabase, getMongoClient } from "@/server/db";
 import { sendAuthenticationEmail } from "@/server/notifications/send";
 import { enqueueVerifiedUser } from "@/server/notifications/welcome-outbox";
+
+const accountNameSchema = z.string().trim().min(1).max(100);
+function accountName(value: unknown): string {
+  const result = accountNameSchema.safeParse(value);
+  if (!result.success) throw APIError.fromStatus("BAD_REQUEST", {
+    code: "INVALID_NAME", message: "Name must contain between 1 and 100 characters",
+  });
+  return result.data;
+}
 
 async function createAuth() {
   const config = getAuthConfig();
@@ -27,6 +38,14 @@ async function createAuth() {
     secret: config.secret,
     trustedOrigins: config.trustedOrigins,
     database: mongodbAdapter(db, { client }),
+    databaseHooks: {
+      user: {
+        create: { async before(user) { return { data: { ...user, name: accountName(user.name) } }; } },
+        update: { async before(user) {
+          return { data: user.name === undefined ? user : { ...user, name: accountName(user.name) } };
+        } },
+      },
+    },
     emailAndPassword: {
       enabled: true,
       minPasswordLength: 12,

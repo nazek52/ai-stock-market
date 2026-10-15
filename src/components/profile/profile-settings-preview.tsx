@@ -181,13 +181,13 @@ function ProfileForm() {
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label htmlFor="country-code" className="text-sm font-medium">Код страны</label>
-                <input id="country-code" name="countryCode" className={fieldClass} value={values.countryCode} onChange={(event) => change("countryCode", event.target.value.toUpperCase())} maxLength={2} autoComplete="country" placeholder="KZ" required aria-invalid={!!errors.countryCode} aria-describedby={errors.countryCode ? "country-code-error" : "country-code-help"} />
+                <input disabled={saving} id="country-code" name="countryCode" className={fieldClass} value={values.countryCode} onChange={(event) => change("countryCode", event.target.value.toUpperCase())} maxLength={2} autoComplete="country" placeholder="KZ" required aria-invalid={!!errors.countryCode} aria-describedby={errors.countryCode ? "country-code-error" : "country-code-help"} />
                 <p id="country-code-help" className="mt-1 text-xs">Две буквы ISO 3166-1, например KZ или US.</p>
                 {errors.countryCode && <p id="country-code-error" className="mt-1 text-sm text-destructive">Укажите код страны из двух латинских букв.</p>}
               </div>
               <div>
                 <label htmlFor="goal" className="text-sm font-medium">Инвестиционная цель</label>
-                <select id="goal" name="investmentGoal" className={fieldClass} value={values.investmentGoal} onChange={(event) => change("investmentGoal", event.target.value)} required aria-invalid={!!errors.investmentGoal} aria-describedby={errors.investmentGoal ? "goal-error" : undefined}>
+                <select disabled={saving} id="goal" name="investmentGoal" className={fieldClass} value={values.investmentGoal} onChange={(event) => change("investmentGoal", event.target.value)} required aria-invalid={!!errors.investmentGoal} aria-describedby={errors.investmentGoal ? "goal-error" : undefined}>
                   <option value="">Выберите цель</option>
                   <option value="capital_preservation">Сохранение капитала</option>
                   <option value="income">Регулярный доход</option>
@@ -197,7 +197,7 @@ function ProfileForm() {
               </div>
               <div>
                 <label htmlFor="risk" className="text-sm font-medium">Допустимый риск</label>
-                <select id="risk" name="riskTolerance" className={fieldClass} value={values.riskTolerance} onChange={(event) => change("riskTolerance", event.target.value)} required aria-invalid={!!errors.riskTolerance} aria-describedby={errors.riskTolerance ? "risk-error" : undefined}>
+                <select disabled={saving} id="risk" name="riskTolerance" className={fieldClass} value={values.riskTolerance} onChange={(event) => change("riskTolerance", event.target.value)} required aria-invalid={!!errors.riskTolerance} aria-describedby={errors.riskTolerance ? "risk-error" : undefined}>
                   <option value="">Выберите уровень</option>
                   <option value="conservative">Низкий</option>
                   <option value="moderate">Средний</option>
@@ -207,7 +207,7 @@ function ProfileForm() {
               </div>
               <div>
                 <label htmlFor="sector" className="text-sm font-medium">Интересующая отрасль</label>
-                <select id="sector" name="preferredSector" className={fieldClass} value={values.preferredSector} onChange={(event) => change("preferredSector", event.target.value)} aria-invalid={!!errors.preferredSector} aria-describedby={errors.preferredSector ? "sector-error" : undefined}>
+                <select disabled={saving} id="sector" name="preferredSector" className={fieldClass} value={values.preferredSector} onChange={(event) => change("preferredSector", event.target.value)} aria-invalid={!!errors.preferredSector} aria-describedby={errors.preferredSector ? "sector-error" : undefined}>
                   <option value="">Без предпочтения</option>
                   <option value="technology">Технологии</option>
                   <option value="healthcare">Здравоохранение</option>
@@ -226,7 +226,7 @@ function ProfileForm() {
             </div>
             <div>
               <label htmlFor="profile-timezone" className="text-sm font-medium">Часовой пояс профиля</label>
-              <input id="profile-timezone" name="timezone" className={fieldClass} value={values.timezone} onChange={(event) => change("timezone", event.target.value)} list="profile-timezones" maxLength={100} required aria-invalid={!!errors.timezone} aria-describedby={errors.timezone ? "profile-timezone-error" : "profile-timezone-help"} />
+              <input disabled={saving} id="profile-timezone" name="timezone" className={fieldClass} value={values.timezone} onChange={(event) => change("timezone", event.target.value)} list="profile-timezones" maxLength={100} required aria-invalid={!!errors.timezone} aria-describedby={errors.timezone ? "profile-timezone-error" : "profile-timezone-help"} />
               <datalist id="profile-timezones">{timezones.map((zone) => <option key={zone} value={zone} />)}</datalist>
               <p id="profile-timezone-help" className="mt-1 text-xs">Название часового пояса IANA, например Asia/Qyzylorda.</p>
               {errors.timezone && <p id="profile-timezone-error" className="mt-1 text-sm text-destructive">Укажите действующий часовой пояс IANA.</p>}
@@ -247,6 +247,7 @@ function DigestForm() {
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [saving, setSaving] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -270,8 +271,11 @@ function DigestForm() {
     if (saving || loadState !== "ready") return;
     const parsed = digestPreferenceUpdateSchema.safeParse({ ...values, timezone: values.timezone.trim() });
     if (!parsed.success) {
-      setErrors(validationErrors(parsed.error.issues));
+      const nextErrors = validationErrors(parsed.error.issues);
+      setErrors(nextErrors);
       setNotice({ kind: "error", text: "Проверьте часовой пояс и время отправки." });
+      const first = Object.keys(nextErrors)[0];
+      if (first) requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus());
       return;
     }
     setSaving(true);
@@ -303,24 +307,24 @@ function DigestForm() {
         {loadState === "loading" ? <p role="status">Загружаем настройки рассылки…</p> : loadState === "error" ? (
           <Status notice={notice} retry={() => { setLoadState("loading"); setRetryToken((value) => value + 1); }} />
         ) : (
-          <form onSubmit={save} noValidate className="grid gap-5">
+          <form ref={formRef} onSubmit={save} noValidate className="grid gap-5">
             <div className="grid gap-5 sm:grid-cols-2">
               <div>
                 <label htmlFor="digest-timezone" className="text-sm font-medium">Часовой пояс рассылки</label>
-                <input id="digest-timezone" name="timezone" className={fieldClass} value={values.timezone} onChange={(event) => { setValues((current) => ({ ...current, timezone: event.target.value })); setErrors((current) => ({ ...current, timezone: undefined })); setNotice(null); }} list="digest-timezones" maxLength={100} required aria-invalid={!!errors.timezone} aria-describedby={errors.timezone ? "digest-timezone-error" : "digest-timezone-help"} />
+                <input disabled={saving} id="digest-timezone" name="timezone" className={fieldClass} value={values.timezone} onChange={(event) => { setValues((current) => ({ ...current, timezone: event.target.value })); setErrors((current) => ({ ...current, timezone: undefined })); setNotice(null); }} list="digest-timezones" maxLength={100} required aria-invalid={!!errors.timezone} aria-describedby={errors.timezone ? "digest-timezone-error" : "digest-timezone-help"} />
                 <datalist id="digest-timezones">{timezones.map((zone) => <option key={zone} value={zone} />)}</datalist>
                 <p id="digest-timezone-help" className="mt-1 text-xs">Название часового пояса IANA.</p>
                 {errors.timezone && <p id="digest-timezone-error" className="mt-1 text-sm text-destructive">Укажите действующий часовой пояс IANA.</p>}
               </div>
               <div>
                 <label htmlFor="digest-time" className="text-sm font-medium">Местное время отправки</label>
-                <input id="digest-time" name="localTime" className={fieldClass} type="time" value={values.localTime} onChange={(event) => { setValues((current) => ({ ...current, localTime: event.target.value })); setErrors((current) => ({ ...current, localTime: undefined })); setNotice(null); }} required aria-invalid={!!errors.localTime} aria-describedby={errors.localTime ? "digest-time-error" : "digest-time-help"} />
+                <input disabled={saving} id="digest-time" name="localTime" className={fieldClass} type="time" value={values.localTime} onChange={(event) => { setValues((current) => ({ ...current, localTime: event.target.value })); setErrors((current) => ({ ...current, localTime: undefined })); setNotice(null); }} required aria-invalid={!!errors.localTime} aria-describedby={errors.localTime ? "digest-time-error" : "digest-time-help"} />
                 <p id="digest-time-help" className="mt-1 text-xs">Фактическое время доставки зависит от работы сервиса.</p>
                 {errors.localTime && <p id="digest-time-error" className="mt-1 text-sm text-destructive">Укажите время в формате ЧЧ:ММ.</p>}
               </div>
             </div>
             <div className="flex items-start gap-3 rounded-lg border border-border bg-background p-4">
-              <input id="digest-consent" name="enabled" className="mt-1 size-4 shrink-0 accent-primary" type="checkbox" checked={values.enabled} onChange={(event) => { setValues((current) => ({ ...current, enabled: event.target.checked })); setNotice(null); }} aria-describedby="digest-consent-help" />
+              <input disabled={saving} id="digest-consent" name="enabled" className="mt-1 size-4 shrink-0 accent-primary" type="checkbox" checked={values.enabled} onChange={(event) => { setValues((current) => ({ ...current, enabled: event.target.checked })); setNotice(null); }} aria-describedby="digest-consent-help" />
               <div>
                 <label htmlFor="digest-consent" className="text-sm font-medium">Хочу получать ежедневную сводку по email</label>
                 <p id="digest-consent-help" className="mt-1 text-xs">Изменение начнёт действовать после сохранения. Вы можете отключить письма здесь же.</p>

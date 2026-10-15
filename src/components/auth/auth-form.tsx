@@ -72,7 +72,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
         const serverErrors: Errors = {};
         let message = "Не удалось выполнить запрос. Попробуйте ещё раз позже.";
 
-        if (code === "INVALID_EMAIL") serverErrors.email = "Проверьте формат адреса электронной почты.";
+        if (code === "INVALID_NAME") serverErrors.name = "Имя должно содержать от 1 до 100 символов.";
+        else if (code === "INVALID_EMAIL") serverErrors.email = "Проверьте формат адреса электронной почты.";
         else if (code === "USER_ALREADY_EXISTS" || code === "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL") serverErrors.email = "Аккаунт с таким адресом уже существует. Войдите в аккаунт.";
         else if (code === "PASSWORD_TOO_SHORT") serverErrors.password = "Пароль должен содержать не менее 12 символов.";
         else if (code === "PASSWORD_TOO_LONG") serverErrors.password = "Пароль должен содержать не более 128 символов.";
@@ -82,7 +83,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
         if (Object.keys(serverErrors).length) {
           setErrors(serverErrors);
-          requestAnimationFrame(() => (serverErrors.email ? emailRef : passwordRef).current?.focus());
+          requestAnimationFrame(() => (serverErrors.name ? nameRef : serverErrors.email ? emailRef : passwordRef).current?.focus());
         } else {
           setNotice(message);
           requestAnimationFrame(() => noticeRef.current?.focus());

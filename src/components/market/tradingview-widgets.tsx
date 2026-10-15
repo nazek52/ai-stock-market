@@ -2,14 +2,20 @@
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
+import type { StockCompany } from "@/contracts";
 
 const EMBED_ORIGIN = "https://s3.tradingview.com/external-embedding";
-const DEFAULT_SYMBOLS = ["NASDAQ:AAPL", "NASDAQ:MSFT", "NASDAQ:NVDA"] as const;
+// TradingView's official free Market Overview preset uses these CFD feeds.
+// Canonical exchange indices may exist on tradingview.com but be unavailable in embeds.
+const MARKET_INDICATORS = [
+  { s: "FOREXCOM:SPXUSD", d: "S&P 500 (CFD)" },
+  { s: "FOREXCOM:DJI", d: "Dow Jones (CFD)" },
+  { s: "FOREXCOM:NSXUSD", d: "Nasdaq 100 (CFD)" },
+] as const;
 const US_SYMBOL = /^(NASDAQ|NYSE):[A-Z][A-Z0-9.-]{0,14}$/;
 
 type Theme = "light" | "dark";
 type WidgetProps = { theme?: Theme; height?: number; className?: string };
-type MarketOverviewProps = WidgetProps & { symbols?: readonly string[] };
 type EmbedConfig = Record<string, unknown>;
 
 function currentTheme(): Theme {
@@ -47,7 +53,7 @@ function TradingViewEmbed({
   className,
 }: {
   title: string;
-  scriptName: "market-overview" | "stock-heatmap";
+  scriptName: "market-overview" | "stock-heatmap" | "symbol-overview";
   config: EmbedConfig;
   height: number;
   className?: string;
@@ -136,10 +142,8 @@ function TradingViewEmbed({
   );
 }
 
-export function TradingViewMarketOverview({ symbols = DEFAULT_SYMBOLS, theme, height, className }: MarketOverviewProps) {
+export function TradingViewMarketOverview({ theme, height, className }: WidgetProps) {
   const colorTheme = useWidgetTheme(theme);
-  const validSymbols = symbols.filter((symbol) => US_SYMBOL.test(symbol)).slice(0, 12);
-  const symbolKey = validSymbols.length ? validSymbols.join(",") : DEFAULT_SYMBOLS.join(",");
   const widgetHeight = safeHeight(height, 440);
   const config = useMemo(() => ({
     colorTheme,
@@ -149,10 +153,10 @@ export function TradingViewMarketOverview({ symbols = DEFAULT_SYMBOLS, theme, he
     showChart: true,
     width: "100%",
     height: widgetHeight,
-    tabs: [{ title: "Акции США", symbols: symbolKey.split(",").map((symbol) => ({ s: symbol })) }],
-  }), [colorTheme, widgetHeight, symbolKey]);
+    tabs: [{ title: "Индикаторы рынка (CFD)", symbols: MARKET_INDICATORS, originalTitle: "Indices" }],
+  }), [colorTheme, widgetHeight]);
 
-  return <TradingViewEmbed key={`${symbolKey}-${colorTheme}-${widgetHeight}`} title="Обзор акций США, TradingView" scriptName="market-overview" config={config} height={widgetHeight} className={className} />;
+  return <TradingViewEmbed key={`${colorTheme}-${widgetHeight}`} title="Индикаторы рынка (CFD): S&P 500, Dow Jones, Nasdaq 100, FOREX.com через TradingView" scriptName="market-overview" config={config} height={widgetHeight} className={className} />;
 }
 
 export function TradingViewStockHeatmap({ theme, height, className }: WidgetProps) {
@@ -172,4 +176,42 @@ export function TradingViewStockHeatmap({ theme, height, className }: WidgetProp
   }), [colorTheme, widgetHeight]);
 
   return <TradingViewEmbed key={`${colorTheme}-${widgetHeight}`} title="Карта акций индекса S&P 500, TradingView" scriptName="stock-heatmap" config={config} height={widgetHeight} className={className} />;
+}
+
+// Fixture records intentionally have a synthetic exchange. These aliases identify
+// only the independent external chart; they never supply prices to the app.
+const FIXTURE_EXCHANGES: Readonly<Record<string, "NASDAQ" | "NYSE">> = {
+  AAPL: "NASDAQ", MSFT: "NASDAQ", NVDA: "NASDAQ", AMZN: "NASDAQ", TSLA: "NASDAQ", "BRK.B": "NYSE", KO: "NYSE",
+};
+
+type StockChartProps = WidgetProps & Pick<StockCompany, "symbol" | "exchange" | "source">;
+
+export function TradingViewStockChart({ symbol, exchange, source, theme, height, className }: StockChartProps) {
+  const colorTheme = useWidgetTheme(theme);
+  const widgetHeight = safeHeight(height, 440);
+  const venue = source === "fixture" ? FIXTURE_EXCHANGES[symbol]
+    : /^NASDAQ(?:\b|\/)/i.test(exchange ?? "") ? "NASDAQ"
+      : /^(?:NYSE(?:\b|\/)|NEW YORK STOCK EXCHANGE\b)/i.test(exchange ?? "") ? "NYSE" : undefined;
+  const chartSymbol = venue && US_SYMBOL.test(`${venue}:${symbol}`) ? `${venue}:${symbol}` : null;
+  const config = useMemo(() => ({
+    colorTheme,
+    locale: "ru",
+    isTransparent: true,
+    chartOnly: false,
+    chartType: "area",
+    autosize: true,
+    width: "100%",
+    height: "100%",
+    symbols: chartSymbol ? [[`${chartSymbol}|1D`]] : [],
+    dateRanges: ["1d|1", "1m|30", "3m|60", "12m|1D", "60m|1W", "all|1M"],
+  }), [chartSymbol, colorTheme]);
+
+  if (!chartSymbol) return <p role="status" className="rounded-lg border border-border bg-muted/40 p-4 text-sm">График недоступен: для этой акции не удалось определить биржу NASDAQ или NYSE. Цена и новости приложения доступны отдельно.</p>;
+
+  return <div className={className}>
+    <p className="mb-3 text-sm text-muted-foreground">{source === "fixture"
+      ? "Это внешний график реального рынка TradingView. Он не связан с синтетической ценой приложения и может показывать другие значения."
+      : "Это независимый график TradingView. Его цена и время обновления могут отличаться от котировки приложения."} Для загрузки нужен интернет.</p>
+    <TradingViewEmbed key={`${chartSymbol}-${colorTheme}-${widgetHeight}`} title={`График ${chartSymbol}, TradingView`} scriptName="symbol-overview" config={config} height={widgetHeight} />
+  </div>;
 }

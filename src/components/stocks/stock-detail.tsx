@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MarketEmptyState } from "@/components/market/market-empty-state";
+import { TradingViewStockChart } from "@/components/market/tradingview-widgets";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ApiError, ApiResult, StockCompany, StockNewsItem, StockQuote, WatchlistItem } from "@/contracts";
 
@@ -16,14 +17,21 @@ type Detail = {
 type WatchlistState = { status: "loading" | "ready" | "error" | "unauthenticated"; included: boolean; message?: string };
 
 const dateTime = new Intl.DateTimeFormat("ru-RU", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" });
-const formatTime = (value: string) => `${dateTime.format(new Date(value))} UTC`;
+const formatTime = (value: string) => {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "время неизвестно" : `${dateTime.format(parsed)} UTC`;
+};
 
 async function read<T>(symbol: string, resource: "company" | "quote" | "news", signal: AbortSignal): Promise<ReadResult<T>> {
   try {
     const response = await fetch(`/api/stocks/${encodeURIComponent(symbol)}/${resource}`, { signal, cache: "no-store" });
     const fixture = response.headers.get("X-Market-Data-Mode") === "fixture";
     const result = await response.json() as ApiResult<T>;
-    if (result.ok) return { data: result.data, fixture };
+    if (!result || typeof result !== "object" || typeof result.ok !== "boolean") throw new Error("Invalid market response");
+    if (result.ok) {
+      if (!response.ok) throw new Error("Unexpected market status");
+      return { data: result.data, fixture };
+    }
     return { error: result.error, fixture };
   } catch {
     return { error: { code: "UPSTREAM_UNAVAILABLE", message: "Network request failed" }, fixture: false };
@@ -87,17 +95,23 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
       });
       if (watchlist.included) {
         const result = await response.json() as ApiResult<{ deleted: boolean }>;
-        if (result.ok) setWatchlist({ status: "ready", included: false });
+        if (result.ok) {
+          if (!response.ok || typeof result.data?.deleted !== "boolean") throw new Error("Invalid delete response");
+          setWatchlist({ status: "ready", included: false });
+        }
         else if (result.error.code === "UNAUTHENTICATED") setWatchlist((current) => ({ ...current, status: "unauthenticated", message: "Сессия истекла. Войдите снова." }));
         else setWatchlist((current) => ({ ...current, message: "Не удалось удалить акцию. Попробуйте снова." }));
       } else {
         const result = await response.json() as ApiResult<WatchlistItem>;
-        if (result.ok) setWatchlist({ status: "ready", included: true });
+        if (result.ok) {
+          if (!response.ok || result.data?.symbol !== symbol) throw new Error("Invalid watchlist response");
+          setWatchlist({ status: "ready", included: true });
+        }
         else if (result.error.code === "UNAUTHENTICATED") setWatchlist((current) => ({ ...current, status: "unauthenticated", message: "Сессия истекла. Войдите снова." }));
         else setWatchlist((current) => ({ ...current, message: result.error.code === "CONFLICT" ? "Список заполнен: можно сохранить не более 50 акций." : "Не удалось добавить акцию. Попробуйте снова." }));
       }
     } catch {
-      setWatchlist((current) => ({ ...current, message: "Нет связи с сервером. Попробуйте снова." }));
+      setWatchlist((current) => ({ ...current, status: "error", message: "Изменение могло сохраниться. Обновите страницу или откройте список, чтобы проверить текущее состояние." }));
     } finally {
       setWatchlistPending(false);
     }
@@ -115,7 +129,7 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
   return (
     <AppShell active={symbol}>
       <div className="page-heading">
-        <div>
+        <div className="min-w-0 break-words">
           <span className="eyebrow">{fixture ? "СИНТЕТИЧЕСКИЕ ДАННЫЕ · FIXTURE" : "АКЦИИ США"}{company?.exchange ? ` · ${company.exchange}` : ""}</span>
           <h1>{company?.companyName ?? symbol}</h1>
           <p>Тикер {symbol}. {company?.industry ? `Отрасль: ${company.industry}.` : ""}</p>
@@ -145,15 +159,23 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
               <CardContent>{company ? <div className="space-y-2 text-sm">
                 <p>Биржа: {company.exchange ?? "нет данных"}</p><p>Отрасль: {company.industry ?? "нет данных"}</p>
                 <p>Капитализация: {company.marketCapitalization === null ? "нет данных" : money.format(company.marketCapitalization)}</p>
-                {company.website && safeUrl(company.website) && <a href={safeUrl(company.website)!} target="_blank" rel="noopener noreferrer" className="inline-block underline underline-offset-2">Сайт компании</a>}
+                {company.source !== "fixture" && company.website && safeUrl(company.website) && <a href={safeUrl(company.website)!} target="_blank" rel="noopener noreferrer" className="inline-block underline underline-offset-2">Сайт компании</a>}
               </div> : stateFor(detail.company, "Данные компании")}</CardContent>
+            </Card>
+          </section>
+          <section aria-labelledby="chart-heading" className="min-w-0 lg:col-span-2">
+            <Card className="min-w-0">
+              <CardHeader><CardTitle><h2 id="chart-heading" className="m-0 text-base">График акции</h2></CardTitle><CardDescription>Отдельный внешний источник: TradingView</CardDescription></CardHeader>
+              <CardContent className="min-w-0">{company
+                ? <TradingViewStockChart symbol={company.symbol} exchange={company.exchange} source={company.source} />
+                : <p role="status" className="text-sm">Для графика нужны данные компании и её биржа. Попробуйте обновить страницу позже.</p>}</CardContent>
             </Card>
           </section>
           <section aria-labelledby="news-heading" className="lg:col-span-2">
             <Card>
               <CardHeader><CardTitle><h2 id="news-heading" className="m-0 text-base">Новости</h2></CardTitle><CardDescription>{news === null ? "Источник новостей: нет данных" : `Публикации из ${fixture ? "синтетической фикстуры" : "серверного источника Finnhub"}`}</CardDescription></CardHeader>
               <CardContent>{news === null ? stateFor(detail.news, "Новости") : news.length === 0 ? <MarketEmptyState kind="empty" title="Новостей нет" description="За доступный период источник не вернул публикаций." /> : <ul>{news.map((item) => <li key={item.id} className="border-b border-border py-3 last:border-b-0">
-                <p className="font-semibold">{safeUrl(item.url) ? <a href={safeUrl(item.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{item.headline}</a> : item.headline}</p>
+                <p className="break-words font-semibold">{!fixture && safeUrl(item.url) ? <a href={safeUrl(item.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{item.headline}</a> : item.headline}</p>
                 {item.summary && <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p>}
                 <p className="mt-2 text-xs text-muted-foreground">{item.source} · {formatTime(item.publishedAt)}</p>
               </li>)}</ul>}</CardContent>
