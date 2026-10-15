@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { SessionActions } from "@/components/auth/session-actions";
+import { useDemoMode } from "@/components/demo-mode";
 
 const items = [
   { label: "Обзор", href: "/", icon: "▦" },
@@ -10,6 +13,7 @@ const items = [
 ] as const;
 
 export function AppShell({ active, children }: { active: string; children: React.ReactNode }) {
+  const demoMode = useDemoMode();
   return <div className="app">
     <a className="skip-link" href="#main">Перейти к содержимому</a>
     <aside className="sidebar">
@@ -17,13 +21,13 @@ export function AppShell({ active, children }: { active: string; children: React
       <span className="nav-caption">РАБОЧАЯ ОБЛАСТЬ</span>
       <nav className="nav" aria-label="Основная навигация">
         {items.map((item) => <Link key={item.href} href={item.href} className="nav-link" aria-current={active === item.label ? "page" : undefined}><span className="nav-icon" aria-hidden="true">{item.icon}</span>{item.label}</Link>)}
-        {process.env.LOCAL_DEMO === "true" && process.env.NODE_ENV !== "production" && <Link href="/demo" className="nav-link" aria-current={active === "Демонстрация" ? "page" : undefined}><span className="nav-icon" aria-hidden="true">▷</span>Демонстрация</Link>}
+        {demoMode && <Link href="/demo" className="nav-link" aria-current={active === "Демонстрация" ? "page" : undefined}><span className="nav-icon" aria-hidden="true">▷</span>Демонстрация</Link>}
       </nav>
       <p className="sidebar-note">Информационный сервис. Не является инвестиционной рекомендацией.</p>
     </aside>
     <div className="main-column">
       <header className="topbar"><div className="breadcrumb">Рабочая область <span aria-hidden="true"> / </span> <strong>{active}</strong></div><SessionActions /></header>
-      <main id="main" className="content">{children}</main>
+      <main id="main" tabIndex={-1} className="content">{children}</main>
     </div>
   </div>;
 }

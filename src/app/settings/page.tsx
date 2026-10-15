@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { EmailVerification, type VerificationUser } from "@/components/auth/email-verification";
 import { getSession } from "@/server/auth/session";
 
+export const metadata = { title: "Ваши настройки | AI Stock Market" };
+
 export default async function SettingsPage() {
   const requestHeaders = await headers();
   let user: VerificationUser | null = null;

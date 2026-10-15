@@ -1,6 +1,8 @@
 import { AppShell } from "@/components/app-shell";
 import { StockSearch } from "@/components/stocks/stock-search";
 
+export const metadata = { title: "Поиск компании | AI Stock Market" };
+
 export default function SearchPage() {
   return (
     <AppShell active="Поиск">

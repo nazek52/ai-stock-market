@@ -1,6 +1,8 @@
 import { AppShell } from "@/components/app-shell";
 import { Watchlist } from "@/components/watchlist/watchlist";
 
+export const metadata = { title: "Избранные акции | AI Stock Market" };
+
 export default function WatchlistPage() {
   return (
     <AppShell active="Мой список">
