@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   output: "standalone",
   agentRules: false,
   poweredByHeader: false,
+  turbopack: {
+    rules: {
+      "*.css": { loaders: ["@tailwindcss/turbopack"], as: "*.css" },
+    },
+  },
   async headers() {
     return [{
       source: "/:path*",

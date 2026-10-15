@@ -2,7 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import type { StockNewsItem } from "@/contracts";
 import { getDatabase } from "@/server/db";
-import { getServerEnvironment } from "@/server/config";
+import { getAuthConfig, getServerEnvironment } from "@/server/config";
 import { AppError } from "@/server/errors";
 import { getRecipient, type DigestPreferenceDocument } from "@/server/notifications/repository";
 import { sendTransactionalEmail, type MailTransport } from "@/server/notifications/send";
@@ -66,6 +66,7 @@ export async function processDigest(userId: string, localDate: string, dependenc
           const label = `${article.source}: ${article.headline}`;
           return { label: label.length > 200 ? `${label.slice(0, 197)}...` : label, url: article.url };
         }),
+        { label: "Настройки ежедневной сводки", url: new URL("/settings", getAuthConfig().baseURL).toString() },
         { label: "Отключить ежедневную сводку", url: unsubscribeUrl(userId, now) },
       ],
     },

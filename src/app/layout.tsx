@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AI Stock Market",
-  description: "Наблюдение за рынком акций и персональные новостные сводки.",
+  description: "Наблюдайте за акциями и новостями в одном месте",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
