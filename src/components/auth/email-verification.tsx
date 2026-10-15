@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { authClient } from "@/components/auth/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,13 @@ export function EmailVerification({ user, sessionUnavailable, showMailpit }: Pro
   const router = useRouter();
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
+  const verifiedRef = useRef<HTMLParagraphElement>(null);
+  const previousVerified = useRef(user?.emailVerified);
+
+  useEffect(() => {
+    if (user?.emailVerified && previousVerified.current === false) verifiedRef.current?.focus();
+    previousVerified.current = user?.emailVerified;
+  }, [user?.emailVerified]);
 
   async function sendVerification() {
     if (!user || user.emailVerified || pending) return;
@@ -43,7 +50,7 @@ export function EmailVerification({ user, sessionUnavailable, showMailpit }: Pro
     }
   }
 
-  return <Card className="max-w-4xl">
+  return <Card className="min-w-0 max-w-4xl">
     <CardHeader>
       <CardTitle><h2 className="m-0 text-lg">Подтверждение электронной почты</h2></CardTitle>
       <CardDescription>Подтвердите адрес, чтобы получать письма и открывать предпросмотр сводки.</CardDescription>
@@ -53,7 +60,7 @@ export function EmailVerification({ user, sessionUnavailable, showMailpit }: Pro
         <p role="alert" className="text-sm text-destructive">Не удалось проверить сессию. Убедитесь, что локальная база запущена, и повторите проверку.</p>
         <Button type="button" variant="outline" className="w-fit" onClick={() => router.refresh()}>Повторить проверку</Button>
       </> : !user ? <p className="text-sm">Для подтверждения адреса <Link href="/login" className="font-semibold text-primary underline">войдите в аккаунт</Link>.</p>
-        : user.emailVerified ? <p role="status" className="break-all text-sm">Адрес {user.email} подтверждён.</p>
+        : user.emailVerified ? <p ref={verifiedRef} tabIndex={-1} role="status" className="break-all text-sm">Адрес {user.email} подтверждён.</p>
           : <>
             <p className="break-all text-sm">Адрес {user.email} пока не подтверждён.</p>
             <div className="flex flex-wrap gap-3">

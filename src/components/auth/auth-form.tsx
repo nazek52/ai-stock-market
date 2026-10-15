@@ -12,7 +12,7 @@ type Mode = "login" | "register";
 type Field = "name" | "email" | "password" | "confirmPassword";
 type Errors = Partial<Record<Field, string>>;
 
-const inputClass = "mt-1.5 w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive";
+const inputClass = "mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive";
 
 export function AuthForm({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -119,37 +119,37 @@ export function AuthForm({ mode }: { mode: Mode }) {
   return (
     <>
       <a className="skip-link" href="#main">Перейти к содержимому</a>
-      <main id="main" className="mx-auto flex min-h-screen max-w-lg flex-col justify-center gap-6 px-4 py-12 sm:px-6">
+      <main id="main" tabIndex={-1} className="mx-auto flex min-h-screen min-w-0 w-full max-w-lg flex-col justify-center gap-6 px-4 py-12 sm:px-6">
         <Link href="/" className="w-fit text-sm font-semibold text-primary hover:underline">← К обзору</Link>
-        <Card className="py-8 sm:py-10">
+        <Card className="min-w-0 py-8 sm:py-10">
           <CardHeader className="gap-2 px-6 sm:px-8">
             <span className="text-xs font-semibold uppercase tracking-widest text-primary">Личный кабинет</span>
-            <CardTitle><h1 className="text-3xl">{isRegister ? "Создать аккаунт" : "Войти в аккаунт"}</h1></CardTitle>
+            <CardTitle><h1 id="auth-form-title" className="text-3xl">{isRegister ? "Создать аккаунт" : "Войти в аккаунт"}</h1></CardTitle>
             <CardDescription>{isRegister ? "Укажите имя, адрес электронной почты и пароль от 12 до 128 символов." : "Введите адрес электронной почты и пароль для входа."}</CardDescription>
           </CardHeader>
           <CardContent className="px-6 sm:px-8">
-            <form noValidate onSubmit={handleSubmit} className="grid gap-5">
+            <form noValidate onSubmit={handleSubmit} aria-busy={pending} aria-labelledby="auth-form-title" className="grid min-w-0 gap-5">
               {isRegister && (
                 <div>
                   <label htmlFor="auth-name" className="text-sm font-medium">Имя</label>
-                  <input id="auth-name" name="name" ref={nameRef} type="text" autoComplete="name" maxLength={100} required aria-invalid={!!errors.name} aria-describedby={errors.name ? "auth-name-error" : undefined} onChange={() => clearField("name")} className={inputClass} />
+                  <input disabled={pending} id="auth-name" name="name" ref={nameRef} type="text" autoComplete="name" maxLength={100} required aria-invalid={!!errors.name} aria-describedby={errors.name ? "auth-name-error" : undefined} onChange={() => clearField("name")} className={inputClass} />
                   {errors.name && <p id="auth-name-error" className="mt-1 text-sm text-destructive">{errors.name}</p>}
                 </div>
               )}
               <div>
                 <label htmlFor="auth-email" className="text-sm font-medium">Электронная почта</label>
-                <input id="auth-email" name="email" ref={emailRef} type="email" inputMode="email" autoComplete="email" required aria-invalid={!!errors.email} aria-describedby={errors.email ? "auth-email-error" : undefined} onChange={() => clearField("email")} className={inputClass} />
+                <input disabled={pending} id="auth-email" name="email" ref={emailRef} type="email" inputMode="email" autoComplete="email" required aria-invalid={!!errors.email} aria-describedby={errors.email ? "auth-email-error" : undefined} onChange={() => clearField("email")} className={inputClass} />
                 {errors.email && <p id="auth-email-error" className="mt-1 text-sm text-destructive">{errors.email}</p>}
               </div>
               <div>
                 <label htmlFor="auth-password" className="text-sm font-medium">Пароль</label>
-                <input id="auth-password" name="password" ref={passwordRef} type="password" autoComplete={isRegister ? "new-password" : "current-password"} minLength={isRegister ? 12 : undefined} maxLength={isRegister ? 128 : undefined} required aria-invalid={!!errors.password} aria-describedby={errors.password ? "auth-password-error" : undefined} onChange={() => clearField("password")} className={inputClass} />
+                <input disabled={pending} id="auth-password" name="password" ref={passwordRef} type="password" autoComplete={isRegister ? "new-password" : "current-password"} minLength={isRegister ? 12 : undefined} maxLength={isRegister ? 128 : undefined} required aria-invalid={!!errors.password} aria-describedby={errors.password ? "auth-password-error" : undefined} onChange={() => clearField("password")} className={inputClass} />
                 {errors.password && <p id="auth-password-error" className="mt-1 text-sm text-destructive">{errors.password}</p>}
               </div>
               {isRegister && (
                 <div>
                   <label htmlFor="auth-confirm" className="text-sm font-medium">Повторите пароль</label>
-                  <input id="auth-confirm" name="confirmPassword" ref={confirmRef} type="password" autoComplete="new-password" required aria-invalid={!!errors.confirmPassword} aria-describedby={errors.confirmPassword ? "auth-confirm-error" : undefined} onChange={() => clearField("confirmPassword")} className={inputClass} />
+                  <input disabled={pending} id="auth-confirm" name="confirmPassword" ref={confirmRef} type="password" autoComplete="new-password" required aria-invalid={!!errors.confirmPassword} aria-describedby={errors.confirmPassword ? "auth-confirm-error" : undefined} onChange={() => clearField("confirmPassword")} className={inputClass} />
                   {errors.confirmPassword && <p id="auth-confirm-error" className="mt-1 text-sm text-destructive">{errors.confirmPassword}</p>}
                 </div>
               )}

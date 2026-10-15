@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import {
   digestPreferenceUpdateSchema,
   profileUpdateSchema,
@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const fieldClass = "mt-2 min-h-11 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
+const fieldClass = "mt-2 min-h-11 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
 const timezones = ["UTC", "Asia/Qyzylorda", "Asia/Almaty", "Europe/Moscow", "Europe/London", "America/New_York"];
 type Notice = { kind: "success" | "error"; text: string; login?: boolean } | null;
 type FieldErrors = Record<string, string | undefined>;
@@ -67,13 +67,22 @@ function serverFieldErrors(error: unknown): FieldErrors {
     : {};
 }
 
-function Status({ notice, retry }: { notice: Notice; retry?: () => void }) {
+function focusFormError(form: RefObject<HTMLFormElement | null>, status: RefObject<HTMLDivElement | null>) {
+  requestAnimationFrame(() => {
+    const invalid = form.current?.querySelector<HTMLElement>('[aria-invalid="true"]:not(:disabled)');
+    (invalid ?? status.current)?.focus();
+  });
+}
+
+function Status({ notice, retry, statusRef }: { notice: Notice; retry?: () => void; statusRef?: RefObject<HTMLDivElement | null> }) {
   if (!notice) return null;
   return (
-    <div role={notice.kind === "error" ? "alert" : "status"} className={`rounded-lg border p-3 text-sm ${notice.kind === "error" ? "border-destructive text-destructive" : "border-border bg-muted text-foreground"}`}>
-      {notice.text}
-      {retry && <Button className="ml-3" type="button" variant="outline" size="sm" onClick={retry}>Повторить</Button>}
-      {notice.login && <Link className="ml-3 font-semibold underline" href="/login">Войти</Link>}
+    <div ref={statusRef} tabIndex={-1} role={notice.kind === "error" ? "alert" : "status"} className={`grid min-w-0 gap-3 rounded-lg border p-3 text-sm ${notice.kind === "error" ? "border-destructive text-destructive" : "border-border bg-muted text-foreground"}`}>
+      <p>{notice.text}</p>
+      {(retry || notice.login) && <div className="flex flex-wrap gap-3">
+        {retry && <Button type="button" variant="outline" size="sm" onClick={retry}>Повторить</Button>}
+        {notice.login && <Link className="font-semibold underline" href="/login">Войти</Link>}
+      </div>}
     </div>
   );
 }
@@ -94,6 +103,8 @@ function ProfileForm() {
   const [saving, setSaving] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const focusAfterRetry = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -109,11 +120,19 @@ function ProfileForm() {
         });
         setLoadState("ready");
         setNotice(null);
+        if (focusAfterRetry.current) {
+          focusAfterRetry.current = false;
+          requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>("input, select")?.focus());
+        }
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         setLoadState("error");
         setNotice(errorNotice(error));
+        if (focusAfterRetry.current) {
+          focusAfterRetry.current = false;
+          requestAnimationFrame(() => statusRef.current?.focus());
+        }
       });
     return () => controller.abort();
   }, [retryToken]);
@@ -138,8 +157,7 @@ function ProfileForm() {
       const nextErrors = validationErrors(parsed.error.issues);
       setErrors(nextErrors);
       setNotice({ kind: "error", text: "Проверьте поля профиля." });
-      const first = Object.keys(nextErrors)[0];
-      if (first) requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>(`[name="${first}"]`)?.focus());
+      focusFormError(formRef, statusRef);
       return;
     }
     setSaving(true);
@@ -159,26 +177,28 @@ function ProfileForm() {
         timezone: profile.timezone,
       });
       setNotice({ kind: "success", text: "Профиль сохранён." });
+      requestAnimationFrame(() => statusRef.current?.focus());
     } catch (error) {
       setErrors(serverFieldErrors(error));
       setNotice(errorNotice(error));
+      focusFormError(formRef, statusRef);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader>
-        <CardTitle><h2 className="m-0 text-lg">Профиль</h2></CardTitle>
+        <CardTitle><h2 id="profile-form-title" className="m-0 text-lg">Профиль</h2></CardTitle>
         <CardDescription>Страна, цель, риск и интересующая отрасль.</CardDescription>
       </CardHeader>
       <CardContent>
         {loadState === "loading" ? <p role="status">Загружаем профиль…</p> : loadState === "error" ? (
-          <Status notice={notice} retry={() => { setLoadState("loading"); setRetryToken((value) => value + 1); }} />
+          <Status notice={notice} statusRef={statusRef} retry={() => { focusAfterRetry.current = true; setLoadState("loading"); setRetryToken((value) => value + 1); }} />
         ) : (
-          <form ref={formRef} onSubmit={save} noValidate className="grid gap-5">
-            <div className="grid gap-5 sm:grid-cols-2">
+          <form ref={formRef} onSubmit={save} noValidate aria-busy={saving} aria-labelledby="profile-form-title" className="grid min-w-0 gap-5">
+            <div className="grid min-w-0 gap-5 sm:grid-cols-2">
               <div>
                 <label htmlFor="country-code" className="text-sm font-medium">Код страны</label>
                 <input disabled={saving} id="country-code" name="countryCode" className={fieldClass} value={values.countryCode} onChange={(event) => change("countryCode", event.target.value.toUpperCase())} maxLength={2} autoComplete="country" placeholder="KZ" required aria-invalid={!!errors.countryCode} aria-describedby={errors.countryCode ? "country-code-error" : "country-code-help"} />
@@ -232,7 +252,7 @@ function ProfileForm() {
               {errors.timezone && <p id="profile-timezone-error" className="mt-1 text-sm text-destructive">Укажите действующий часовой пояс IANA.</p>}
             </div>
             <Button type="submit" disabled={saving} className="w-fit">{saving ? "Сохраняем…" : "Сохранить профиль"}</Button>
-            <Status notice={notice} />
+            <Status notice={notice} statusRef={statusRef} />
           </form>
         )}
       </CardContent>
@@ -248,6 +268,8 @@ function DigestForm() {
   const [saving, setSaving] = useState(false);
   const [retryToken, setRetryToken] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const focusAfterRetry = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -257,11 +279,19 @@ function DigestForm() {
         setValues({ enabled: preference.enabled, timezone: preference.timezone, localTime: preference.localTime });
         setLoadState("ready");
         setNotice(null);
+        if (focusAfterRetry.current) {
+          focusAfterRetry.current = false;
+          requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>("input, select")?.focus());
+        }
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         setLoadState("error");
         setNotice(errorNotice(error));
+        if (focusAfterRetry.current) {
+          focusAfterRetry.current = false;
+          requestAnimationFrame(() => statusRef.current?.focus());
+        }
       });
     return () => controller.abort();
   }, [retryToken]);
@@ -274,8 +304,7 @@ function DigestForm() {
       const nextErrors = validationErrors(parsed.error.issues);
       setErrors(nextErrors);
       setNotice({ kind: "error", text: "Проверьте часовой пояс и время отправки." });
-      const first = Object.keys(nextErrors)[0];
-      if (first) requestAnimationFrame(() => formRef.current?.querySelector<HTMLInputElement>(`[name="${first}"]`)?.focus());
+      focusFormError(formRef, statusRef);
       return;
     }
     setSaving(true);
@@ -289,26 +318,28 @@ function DigestForm() {
       });
       setValues({ enabled: preference.enabled, timezone: preference.timezone, localTime: preference.localTime });
       setNotice({ kind: "success", text: preference.enabled ? "Согласие и настройки рассылки сохранены. Отправка сводок станет доступна после запуска почтового задания." : "Рассылка отключена." });
+      requestAnimationFrame(() => statusRef.current?.focus());
     } catch (error) {
       setErrors(serverFieldErrors(error));
       setNotice(errorNotice(error));
+      focusFormError(formRef, statusRef);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader>
-        <CardTitle><h2 className="m-0 text-lg">Ежедневная сводка</h2></CardTitle>
+        <CardTitle><h2 id="digest-form-title" className="m-0 text-lg">Ежедневная сводка</h2></CardTitle>
         <CardDescription>Управляйте согласием на email, местным временем и часовым поясом рассылки.</CardDescription>
       </CardHeader>
       <CardContent>
         {loadState === "loading" ? <p role="status">Загружаем настройки рассылки…</p> : loadState === "error" ? (
-          <Status notice={notice} retry={() => { setLoadState("loading"); setRetryToken((value) => value + 1); }} />
+          <Status notice={notice} statusRef={statusRef} retry={() => { focusAfterRetry.current = true; setLoadState("loading"); setRetryToken((value) => value + 1); }} />
         ) : (
-          <form ref={formRef} onSubmit={save} noValidate className="grid gap-5">
-            <div className="grid gap-5 sm:grid-cols-2">
+          <form ref={formRef} onSubmit={save} noValidate aria-busy={saving} aria-labelledby="digest-form-title" className="grid min-w-0 gap-5">
+            <div className="grid min-w-0 gap-5 sm:grid-cols-2">
               <div>
                 <label htmlFor="digest-timezone" className="text-sm font-medium">Часовой пояс рассылки</label>
                 <input disabled={saving} id="digest-timezone" name="timezone" className={fieldClass} value={values.timezone} onChange={(event) => { setValues((current) => ({ ...current, timezone: event.target.value })); setErrors((current) => ({ ...current, timezone: undefined })); setNotice(null); }} list="digest-timezones" maxLength={100} required aria-invalid={!!errors.timezone} aria-describedby={errors.timezone ? "digest-timezone-error" : "digest-timezone-help"} />
@@ -331,7 +362,7 @@ function DigestForm() {
               </div>
             </div>
             <Button type="submit" disabled={saving} className="w-fit">{saving ? "Сохраняем…" : "Сохранить рассылку"}</Button>
-            <Status notice={notice} />
+            <Status notice={notice} statusRef={statusRef} />
           </form>
         )}
       </CardContent>
@@ -340,5 +371,5 @@ function DigestForm() {
 }
 
 export function ProfileSettingsPreview() {
-  return <div className="grid max-w-4xl gap-5"><ProfileForm /><DigestForm /></div>;
+  return <div className="grid min-w-0 w-full max-w-4xl gap-5"><ProfileForm /><DigestForm /></div>;
 }
