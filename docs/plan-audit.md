@@ -22,9 +22,10 @@ ID аудита: P8.1–P8.5 с проверкой всех 47 задач P0.1�
 | Targeted ESLint восьми UI-файлов с `--max-warnings 0` | PASS: семь компонентов из раздела исправлений и `src/app/page.tsx`. |
 | `npx tsc --noEmit` | PASS после UI-исправлений и добавления индексов/графика. |
 | `git diff --check` | PASS после UI-исправлений; предупреждение Git о CRLF/LF не является ошибкой whitespace. |
-| `npm run check` текущей итоговой ветки | **PASS**: lint, Next typegen/TypeScript, 151 unit-тест в 11 файлах, production build 14 страниц; exit 0. |
+| Последний завершённый `npm run check` аудитной ветки (до финальной правки CFD/dev cache) | **PASS**: lint, Next typegen/TypeScript, 151 unit-тест в 11 файлах, production build 14 страниц; exit 0. |
 | `npm run test:integration` текущей итоговой ветки | **PASS: 90/90 тестов в 12 файлах**, изолированный MongoDB replica set. Результат текущего аудита передан координатором. |
 | `npm audit --omit=dev --audit-level=high` текущей итоговой ветки | **PASS: 0 runtime-уязвимостей**, результат текущего запуска координатора. |
+| Финальная правка CFD и dev cache | Targeted ESLint/TypeScript после CFD — PASS. Новая настройка `turbopackFileSystemCacheForDev:false`: проверка повторного dev-запуска после build ещё выполняется координатором; это не подтверждённый результат прежнего прогона. |
 
 Предыдущая объединённая версия имела успешные 150 unit-тестов, 79 интеграционных тестов и CI; это историческое доказательство из [handoff интеграции](handoffs/integration-ab-local-demo.md), а не результат полного запуска после текущих исправлений. Интеграционные файлы матрицы включены в текущие 90/90; unit/build также прошли текущий полный check. Наличие теста само по себе не подменяет результат запуска.
 
@@ -66,7 +67,7 @@ ID аудита: P8.1–P8.5 с проверкой всех 47 задач P0.1�
 
 | ID | A/B | Объект | Существующие файлы | Автоматическое доказательство / остаток приёмки |
 | --- | --- | --- | --- | --- |
-| P3.1 | A | Дашборд: индексы, карта, котировки, новости | [src/app/page.tsx](../src/app/page.tsx)<br>[src/components/market/dashboard-data.tsx](../src/components/market/dashboard-data.tsx)<br>[src/components/market/tradingview-widgets.tsx](../src/components/market/tradingview-widgets.tsx) | [tests/integration/stock-api.test.ts](../tests/integration/stock-api.test.ts)<br>TV config фиксирует SP:SPX / DJ:DJI / NASDAQ:IXIC; отдельные AAPL/MSFT/NVDA сохранены. Основной desktop просмотр [M5](#m5); наблюдение каждого индексного значения не заявлено. |
+| P3.1 | A | Дашборд: индексы, карта, котировки, новости | [src/app/page.tsx](../src/app/page.tsx)<br>[src/components/market/dashboard-data.tsx](../src/components/market/dashboard-data.tsx)<br>[src/components/market/tradingview-widgets.tsx](../src/components/market/tradingview-widgets.tsx) | [tests/integration/stock-api.test.ts](../tests/integration/stock-api.test.ts)<br>Рабочий официальный CFD preset FOREXCOM:SPXUSD / FOREXCOM:DJI / FOREXCOM:NSXUSD явно подписан «Индикаторы рынка (CFD)». Числа/график подтверждены [M5](#m5); Nasdaq 100 не назван Nasdaq Composite. Собственные AAPL/MSFT/NVDA сохранены. |
 | P3.2 | A | Контролируемые TradingView-виджеты | [src/components/market/tradingview-widgets.tsx](../src/components/market/tradingview-widgets.tsx) | Fixed script host, height bounds, theme, iframe title, timeout/retry. Внешний AAPL chart реально загрузился [M5](#m5); все темы/offline виджетов отдельно не проверены. |
 | P3.3 | B | Finnhub и fixture-адаптер | [src/server/market/transport.ts](../src/server/market/transport.ts)<br>[src/server/market/cache.ts](../src/server/market/cache.ts)<br>[src/server/market/normalization.ts](../src/server/market/normalization.ts)<br>[src/server/rate-limit.ts](../src/server/rate-limit.ts) | [tests/market/client.test.ts](../tests/market/client.test.ts)<br>[tests/integration/rate-limit.test.ts](../tests/integration/rate-limit.test.ts)<br>5s timeout, header token, quota/lease, coalescing, cache, 429 и ошибочные ответы; live-сеть/аккаунт не проверены. |
 | P3.4 | A | Источник и время собственных данных | [src/components/market/dashboard-data.tsx](../src/components/market/dashboard-data.tsx)<br>[src/components/stocks/stock-detail.tsx](../src/components/stocks/stock-detail.tsx)<br>[src/components/watchlist/watchlist.tsx](../src/components/watchlist/watchlist.tsx) | [tests/market/client.test.ts](../tests/market/client.test.ts)<br>[tests/integration/stock-api.test.ts](../tests/integration/stock-api.test.ts)<br>Source/ISO время проверены API; собственная цена 100, её source/time и отдельный внешний график 343.94 наблюдались [M4](#m4), [M5](#m5). Это значения конкретного прогона, не обещание актуальной цены. |
@@ -128,13 +129,15 @@ ID аудита: P8.1–P8.5 с проверкой всех 47 задач P0.1�
 
 В ходе аудита исправлены: локализация INVALID_NAME и фокус поля; блокировка профиля/рассылки во время сохранения и фокус timezone; контекст 404 неизвестной акции; идемпотентное удаление правила; консервативное состояние после потерянного ответа мутации, чтобы не предлагать повторное создание без чтения БД; некорректные даты/HTTP success; фальшивые переходы по синтетическим новостям. Это изменения реализации; ручная проверка ниже остаётся отдельной.
 
-P3.1 дополнен фиксированным обзором индексов S&P 500, Dow Jones и Nasdaq Composite. Собственные котировки AAPL/MSFT/NVDA остаются отдельным блоком с собственным source/time. P4.3 дополнен отдельным графиком акции: `TradingViewStockChart({symbol, exchange, source, theme?, height?, className?})`, NASDAQ/NYSE из нормализованной компании. Для семи fixture-тикеров есть фиксированное сопоставление биржи только для внешнего виджета; оно не создаёт цену/историю приложения. Неизвестная биржа показывает unavailable. Высота ограничена 320–900px; скрипт имеет фиксированный домен; factory очищает DOM/listeners и даёт 15s timeout/retry.
+P3.1 реализован внешним обзором «Индикаторы рынка (CFD)»: S&P 500 (CFD), Dow Jones (CFD), Nasdaq 100 (CFD), источник FOREX.com через TradingView. Первая конфигурация SP:SPX / DJ:DJI / NASDAQ:IXIC показала «Пока нет данных» и заменена доступным официальным preset. Это явно маркированные производные инструменты; Nasdaq 100 отличается от Nasdaq Composite. Обратимое решение зафиксировано в [product-decisions.md](product-decisions.md). Собственные котировки AAPL/MSFT/NVDA остаются отдельным блоком с собственным source/time. P4.3 дополнен отдельным графиком акции: `TradingViewStockChart({symbol, exchange, source, theme?, height?, className?})`, NASDAQ/NYSE из нормализованной компании. Для семи fixture-тикеров есть фиксированное сопоставление биржи только для внешнего виджета; оно не создаёт цену/историю приложения. Неизвестная биржа показывает unavailable. Высота ограничена 320–900px; скрипт имеет фиксированный домен; factory очищает DOM/listeners и даёт 15s timeout/retry.
 
 Источники проверки внешнего контракта:
 
 - [TradingView Symbol Overview: официальный пример виджета](https://www.tradingview.com/widget-docs/widgets/charts/symbol-overview/) — `embed-widget-symbol-overview.js`, `symbols`, `chartOnly`, `autosize`, `dateRanges`.
-- [TradingView: пояснение SP:SPX и DJ:DJI](https://www.tradingview.com/support/solutions/43000709178-what-does-tvc-stand-for-in-the-instrument-ticker/) — используются исходные идентификаторы, не подмена TVC-производными.
-- [Nasdaq Composite NASDAQ:IXIC](https://www.tradingview.com/symbols/NASDAQ-IXIC/) — третий индекс фиксированного обзора.
+- [TradingView Market Overview: официальный preset](https://www.tradingview.com/widget-docs/widgets/watchlists/market-overview/) — FOREXCOM:SPXUSD, FOREXCOM:DJI, FOREXCOM:NSXUSD.
+- [TradingView Available Markets: worldwide](https://www.tradingview.com/widget-docs/markets/worldwide/) — FOREX.com включён в доступные CFD-источники.
+- [TradingView Data FAQ](https://www.tradingview.com/widget-docs/faq/data/) — доступность инструмента на сайте отличается от права показывать его в виджете; платный пользовательский план это ограничение не снимает.
+- [TradingView: смысл TVC-префикса](https://www.tradingview.com/support/solutions/43000709178-what-does-tvc-stand-for-in-the-instrument-ticker/) — производный TVC-источник также нельзя выдавать за исходный индекс.
 - [Berkshire Hathaway NYSE:BRK.B](https://www.tradingview.com/symbols/NYSE-BRK.B/) — класс акции сохраняется в символе графика.
 
 Наличие корректной конфигурации не подтверждает доступность внешнего сервиса или скорость данных. TradingView может показывать данные, отличающиеся от синтетической цены и от Finnhub. Этого виджета нет в тракте проверки правил/доставки писем.
@@ -151,7 +154,7 @@ P3.1 дополнен фиксированным обзором индексов
 <a id="m2"></a>
 ### M2. Аккаунт и серверные границы — PASS
 
-В браузере пользователь зарегистрировался и оказался вошедшим. Runtime API smoke подтвердил profile PATCH→GET, no session 401, foreign Origin 403 и unknown fields 400. Данные owner isolation/logout/expired-cookie покрыты интеграционными тестами. Отдельный браузерный logout→login→reload в этом прогоне не заявляется.
+В браузере пользователь зарегистрировался и оказался вошедшим. Runtime API smoke подтвердил profile PATCH→GET, no session 401, foreign Origin 403 и unknown fields 400. Данные owner isolation/logout/expired-cookie покрыты интеграционными тестами. После перезапуска сессия сохранялась до явного выхода; UI logout перевёл в /login. После повторного ввода данных и финального build→dev новый браузерный просмотр /watchlist подтвердил вошедшую сессию и сохранённый AAPL. Промежуточный autorestart Next при изменении конфигурации дал ошибку вкладки; финальный запуск восстановлен и проверен.
 
 <a id="m3"></a>
 ### M3. Подтверждение email — PASS
@@ -164,9 +167,9 @@ P3.1 дополнен фиксированным обзором индексов
 Apple дал один AAPL; звезда добавила его в watchlist. Открыта карточка с собственной fixture-ценой100, source/time и явным отличием внешних данных. Runtime API smoke подтвердил все семь поисковых aliases и unknown-symbol ошибку. Все гонки печати в браузере отдельно не инъецировались.
 
 <a id="m5"></a>
-### M5. Индексы и внешний stock chart — PASS для наблюдённой части
+### M5. Внешние рыночные индикаторы и stock chart — PASS наблюдённой загрузки
 
-График AAPL реально загрузился и показал 343.94, отдельно от собственной fixture-цены 100. Fixed index config и подпись «Индексы рынка» включают SP:SPX / DJ:DJI / NASDAQ:IXIC; реальные значения каждого индексного iframe отдельно не записаны. Доступность всех виджетов/тем не утверждается.
+График AAPL реально загрузился и показал 343.94, отдельно от собственной fixture-цены 100. При визуальной/AX-проверке обзора канонические SP:SPX / DJ:DJI / NASDAQ:IXIC показали «Пока нет данных», несмотря на существование страниц этих индексов. После перехода на официальный FOREX.com CFD preset основной агент 2026-10-15 примерно в 17:09 UTC наблюдал S&P 500 (CFD) 7725.6, Dow Jones (CFD) 52055.1 и Nasdaq 100 (CFD) 29763.3, график и кнопки интервала от «1Д» до «Все», без сообщения об отсутствии данных. Заголовок «Индикаторы рынка (CFD)», подписи FOREX.com через TradingView и отличие Nasdaq 100 от Nasdaq Composite видны явно. Heatmap работал независимо. Числа являются снимком этого прогона, а не текущими котировками или обещанием задержки. Доступность всех виджетов/тем не утверждается.
 
 <a id="m6"></a>
 ### M6. API ошибки и квоты — PASS backend; расширенный UI не выполнен
@@ -176,7 +179,7 @@ Runtime script smoke: invalid timezone 400 с fields, foreign Origin 403, noauth
 <a id="m7"></a>
 ### M7. Личный список — PASS основного пути
 
-Apple→звезда→AAPL detail→watchlist: 1 выполнено в браузере. Runtime duplicate add не создаёт вторую запись. В select доступны новые/старые/тикер/компания; сортировка по цене не требуется точной строкой P5.4. Полный прогон четырёх sort, нескольких страниц и logout/reload UI не выполнен; persistence/uniqueness/cap покрыты интеграцией.
+Apple→звезда→AAPL detail→watchlist: 1 выполнено в браузере. Runtime duplicate add не создаёт вторую запись. В select доступны новые/старые/тикер/компания; сортировка по цене не требуется точной строкой P5.4. После выхода, повторного входа и build→dev список сохранил один AAPL в браузере. Полный прогон четырёх sort и нескольких страниц не выполнен; uniqueness/cap покрыты интеграцией.
 
 <a id="m8"></a>
 ### M8. Настройки — PASS наблюдённого сохранения
@@ -215,8 +218,8 @@ Signed unsubscribe GET ответил 200 и сохранил enabled=true (то
 
 ## Ограничения и передача
 
-Дополнение после последнего перезапуска: readiness 200 по localhost/127.0.0.1/::1, Mailpit/Inngest health 200. В браузере сохранены сессия и AAPL в списке; загрузились три индекса, heatmap, собственные котировки 100/110/120 с source/time. Ограничение Tailwind до `src` (`0879d0a`) и новый запуск устранили наблюдённый цикл dev reload: 0 повторных Compiled за контрольные 7 секунд. Конкретный внутренний сбой OneDrive не доказан. После CSS-исправления production build повторно PASS. Итоговый [handoff](handoffs/demo-acceptance.md), [PR #22](https://github.com/nazek52/ai-stock-market/pull/22).
+Дополнение после последнего перезапуска: readiness 200 по localhost/127.0.0.1/::1, Mailpit/Inngest health 200. В браузере до явного logout сохранялись сессия и AAPL в списке; logout подтвердил переход в /login. После замены канонического набора загрузились три явно маркированных CFD-индикатора ([M5](#m5)), heatmap и собственные котировки 100/110/120 с source/time. Ограничение Tailwind до `src` (`0879d0a`) уменьшило область наблюдения; первоначальный контроль показал 0 повторных Compiled за 7 секунд, однако после следующего build одного source-ограничения оказалось недостаточно. Прямое попадание `.next` в Tailwind scanner и конкретный внутренний сбой OneDrive не доказаны; retained graph остаётся гипотезой. После CSS-правки production build повторно PASS. Коммит `ace30d9` дополнительно отключил `experimental.turbopackFileSystemCacheForDev`; свежий dev-запуск наблюдался стабильным. Последовательность build → fresh dev после этой правки прошла: build exit 0, Next Ready 1827 мс, readiness 200 по всем трём loopback-адресам, 0 Compiled до/после контрольных 7 секунд, стабильный UI /watchlist с сохранённым AAPL. Точная внутренняя причина цикла остаётся гипотезой; проверенное средство устранения — свежий dev-граф при запуске. Итоговый [handoff](handoffs/demo-acceptance.md), [PR #22](https://github.com/nazek52/ai-stock-market/pull/22).
 
 P7.5 намеренно deferred. Не заявляются live-качество Gemini, внешняя SMTP-доставка, реальная задержка/биржевой календарь, лицензия Finnhub, облачные задания и публичный production. Nullable показатели остаются «нет данных», а синтетика не является фактической рыночной историей. Полный WCAG-аудит не подменяется клавиатурным smoke-тестом.
 
-Статус: локальный функциональный сценарий готов в границах M2–M12; матрица 47/47 и 90/90 интеграционных тестов подтверждены. Полный check и stop/restart прошли; финальный commit/CI фиксирует координатор. Расширенная UI-матрица M13 неполная и остаётся дополнительной проверкой, P7.5 условно отложен. Финализированы только документация аудита, README и историческая пометка QA; API/схемы/env не менялись. Результат передаётся A/B и основному агенту для итогового handoff `docs/handoffs/demo-acceptance.md` (создаёт координатор), фиксации финального коммита/CI и действительных наблюдений. Самостоятельный commit/push/deploy этой задачей не выполняется.
+Статус: локальный функциональный сценарий готов в границах M2–M12; матрица 47/47 и 90/90 интеграционных тестов подтверждены. Последний завершённый полный check и stop/restart прошли. Новая dev-cache правка проверена последовательностью build→dev и браузером; CI точного финального HEAD доступен в PR #22. Расширенная UI-матрица M13 неполная и остаётся дополнительной проверкой, P7.5 условно отложен. Финализированы только документация аудита, README и историческая пометка QA; API/схемы/env не менялись. Результат передаётся A/B и основному агенту для итогового handoff `docs/handoffs/demo-acceptance.md` (создаёт координатор), фиксации финального коммита/CI и действительных наблюдений. Самостоятельный commit/push/deploy этой задачей не выполняется.
