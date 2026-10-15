@@ -37,7 +37,7 @@ function subscribeTheme(onChange: () => void) {
 }
 
 function useWidgetTheme(override?: Theme): Theme {
-  const selected = useSyncExternalStore(subscribeTheme, currentTheme, (): Theme => "light");
+  const selected = useSyncExternalStore(subscribeTheme, currentTheme, (): Theme => "dark");
   return override ?? selected;
 }
 
@@ -74,11 +74,17 @@ function TradingViewEmbed({
     const widget = widgetRef.current;
     if (!widget) return;
     widget.replaceChildren();
+    // A downloaded async embed can still execute after React cleanup. Give each
+    // attempt its own parent and detach it intact, so the vendor never reads a
+    // removed script's null parent during navigation or Strict Mode replay.
+    const container = document.createElement("div");
+    container.className = "tradingview-widget-container h-full w-full";
+    widget.appendChild(container);
     const widgetTarget = document.createElement("div");
     widgetTarget.className = "tradingview-widget-container__widget";
     widgetTarget.style.height = "100%";
     widgetTarget.style.width = "100%";
-    widget.appendChild(widgetTarget);
+    container.appendChild(widgetTarget);
     let active = true;
     let frame: HTMLIFrameElement | null = null;
     const timeout = window.setTimeout(() => { if (active) setState("error"); }, 15000);
@@ -96,7 +102,7 @@ function TradingViewEmbed({
       }
     };
     const observer = new MutationObserver(() => {
-      const found = widget.querySelector("iframe");
+      const found = container.querySelector("iframe");
       if (found && found !== frame) {
         frame?.removeEventListener("load", onFrameLoad);
         frame?.removeEventListener("error", onFrameError);
@@ -106,7 +112,7 @@ function TradingViewEmbed({
         frame.addEventListener("error", onFrameError);
       }
     });
-    observer.observe(widget, { childList: true, subtree: true });
+    observer.observe(container, { childList: true, subtree: true });
 
     const script = document.createElement("script");
     script.src = `${EMBED_ORIGIN}/embed-widget-${scriptName}.js`;
@@ -118,16 +124,21 @@ function TradingViewEmbed({
         setState("error");
       }
     };
-    widget.appendChild(script);
+    // React's development effect replay cleans up before this task starts;
+    // avoid downloading a second embed for the discarded mount.
+    const startEmbed = window.setTimeout(() => {
+      if (active) container.appendChild(script);
+    }, 0);
 
     return () => {
       active = false;
+      window.clearTimeout(startEmbed);
       window.clearTimeout(timeout);
       observer.disconnect();
       frame?.removeEventListener("load", onFrameLoad);
       frame?.removeEventListener("error", onFrameError);
       script.onerror = null;
-      widget.replaceChildren();
+      container.remove();
     };
   }, [attempt, config, scriptName, title]);
 
@@ -156,7 +167,16 @@ export function TradingViewMarketOverview({ theme, height, className }: WidgetPr
   const config = useMemo(() => ({
     colorTheme,
     locale: "ru",
-    isTransparent: true,
+    isTransparent: false,
+    plotLineColorGrowing: "#8baee0",
+    plotLineColorFalling: "#8baee0",
+    belowLineFillColorGrowing: "rgba(54, 95, 157, 0.28)",
+    belowLineFillColorFalling: "rgba(54, 95, 157, 0.28)",
+    belowLineFillColorGrowingBottom: "rgba(14, 19, 29, 0)",
+    belowLineFillColorFallingBottom: "rgba(14, 19, 29, 0)",
+    gridLineColor: "rgba(99, 113, 138, 0.12)",
+    scaleFontColor: "#a2adbe",
+    symbolActiveColor: "rgba(44, 79, 131, 0.3)",
     showSymbolLogo: true,
     showChart: true,
     width: "100%",
@@ -173,7 +193,7 @@ export function TradingViewStockHeatmap({ theme, height, className }: WidgetProp
   const config = useMemo(() => ({
     colorTheme,
     locale: "ru",
-    isTransparent: true,
+    isTransparent: false,
     dataSource: "SPX500",
     grouping: "sector",
     blockSize: "market_cap_basic",
@@ -204,7 +224,14 @@ export function TradingViewStockChart({ symbol, exchange, source, theme, height,
   const config = useMemo(() => ({
     colorTheme,
     locale: "ru",
-    isTransparent: true,
+    isTransparent: false,
+    backgroundColor: "#0e131d",
+    widgetFontColor: "#edf2fa",
+    fontColor: "#a2adbe",
+    gridLineColor: "rgba(99, 113, 138, 0.12)",
+    lineColor: "#8baee0",
+    topColor: "rgba(54, 95, 157, 0.3)",
+    bottomColor: "rgba(14, 19, 29, 0)",
     chartOnly: false,
     chartType: "area",
     autosize: true,

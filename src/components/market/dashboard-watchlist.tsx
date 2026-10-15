@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowRight, ArrowUpRight, Bookmark } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ApiError, ApiResult, WatchlistItem } from "@/contracts";
@@ -42,7 +43,7 @@ export function DashboardWatchlist() {
 
   return (
     <div className="grid gap-4">
-      {state.kind === "loading" && <p role="status" className="text-sm text-muted-foreground">Загружаем ваш список…</p>}
+      {state.kind === "loading" && <div className="grid gap-3"><p role="status" className="sr-only">Загружаем ваш список…</p>{[0,1,2].map(index=><span key={index} className="skeleton h-12 w-full" aria-hidden="true" />)}</div>}
       {state.kind === "error" && <div role="alert" className="grid gap-3 rounded-lg border border-border bg-muted/40 p-4 text-sm">
         <p>{state.error.code === "UNAUTHENTICATED" ? "Войдите, чтобы увидеть ваш список." : state.error.code === "RATE_LIMITED" ? "Лимит запросов исчерпан. Попробуйте позже." : "Не удалось загрузить список. Попробуйте ещё раз."}</p>
         <div className="flex flex-wrap gap-3">
@@ -50,19 +51,18 @@ export function DashboardWatchlist() {
           <Button type="button" variant="outline" size="sm" onClick={retry}>Повторить</Button>
         </div>
       </div>}
-      {state.kind === "ready" && state.items.length === 0 && <div className="rounded-lg border border-dashed border-border bg-muted/40 p-4 text-sm">
+      {state.kind === "ready" && state.items.length === 0 && <div className="empty-state text-sm"><Bookmark size={24} strokeWidth={1.4} className="text-accent-foreground" aria-hidden="true" />
         <p>В списке пока нет акций.</p>
         <Link href="/search" className="mt-3 inline-flex font-semibold text-primary underline-offset-4 hover:underline">Найти акцию →</Link>
       </div>}
-      {newest.length > 0 && <ul className="divide-y divide-border rounded-lg border border-border">
-        {newest.map((item) => <li key={item.id} className="min-w-0 px-4 py-3">
-          <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm hover:underline">
-            <span className="font-semibold text-primary">{item.symbol}</span>
-            <span className="min-w-0 break-words text-foreground">{item.companyName}</span>
+      {newest.length > 0 && <ul className="grid gap-2">
+        {newest.map((item) => <li key={item.id} className="data-row min-w-0 rounded-xl border border-border bg-background/40">
+          <Link href={`/stocks/${encodeURIComponent(item.symbol)}`} className="flex min-w-0 items-center gap-3 rounded-xl px-3 py-3 text-sm">
+            <span className="symbol-avatar !size-9 !text-[10px]" aria-hidden="true">{item.symbol.slice(0,2)}</span><span className="grid min-w-0 gap-1"><span className="font-semibold text-foreground">{item.symbol}</span><span className="min-w-0 break-words text-xs text-muted-foreground">{item.companyName}</span></span><ArrowUpRight className="ml-auto shrink-0 text-accent-foreground" size={15} aria-hidden="true" />
           </Link>
         </li>)}
       </ul>}
-      <Link href="/watchlist" className="w-fit text-sm font-semibold text-primary underline-offset-4 hover:underline">Открыть полный список →</Link>
+      <Link href="/watchlist" className="inline-flex w-fit items-center gap-2 text-xs font-medium text-primary underline-offset-4 hover:underline">Открыть полный список <ArrowRight size={13} aria-hidden="true" /></Link>
     </div>
   );
 }

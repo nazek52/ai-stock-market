@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowLeft, ArrowUpRight, Bookmark, Building2, ChartNoAxesCombined, Newspaper } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MarketEmptyState } from "@/components/market/market-empty-state";
@@ -144,44 +145,43 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
 
   return (
     <AppShell active={symbol}>
-      <div className="page-heading">
-        <div className="min-w-0 break-words">
-          <span className="eyebrow">{fixture ? "СИНТЕТИЧЕСКИЕ ДАННЫЕ · FIXTURE" : "АКЦИИ США"}{company?.exchange ? ` · ${company.exchange}` : ""}</span>
-          <h1>{company?.companyName ?? symbol}</h1>
-          <p>Тикер {symbol}. {company?.industry ? `Отрасль: ${company.industry}.` : ""}</p>
+      <div className="page-heading motion-enter">
+        <div className="flex min-w-0 items-start gap-4 break-words">
+          <span aria-hidden="true" className="mt-1 hidden shrink-0 sm:block"><span className="symbol-avatar">{symbol.slice(0, 2)}</span></span><div className="min-w-0"><span className="section-kicker">{fixture ? "СИНТЕТИЧЕСКИЕ ДАННЫЕ · FIXTURE" : "АКЦИИ США"}{company?.exchange ? ` · ${company.exchange}` : ""}</span>
+          <h1>{symbol}</h1>
+          <p className="text-base">{company?.companyName ?? "Карточка инструмента"}{company?.industry ? ` · ${company.industry}` : ""}</p></div>
         </div>
-        <Link className="button button-outline" href="/search">← К поиску</Link>
+        <Link className="button button-outline" href="/search"><ArrowLeft aria-hidden="true" className="size-4" />К поиску</Link>
       </div>
 
-      {!detail && <p role="status">Загружаем данные акции…</p>}
+      {!detail && <div className="grid gap-4"><p role="status">Загружаем данные акции…</p><div aria-hidden="true" className="skeleton h-56 rounded-2xl" /><div aria-hidden="true" className="skeleton h-80 rounded-2xl" /></div>}
       {authRequired && <MarketEmptyState kind="error" title="Войдите в аккаунт" description="Для просмотра данных акции требуется вход." action={{ href: "/login", label: "Войти" }} />}
       {!authRequired && missing && <MarketEmptyState kind="empty" title="Символ не найден" description="Проверьте тикер или вернитесь к поиску." action={{ href: "/search", label: "К поиску" }} />}
       {!authRequired && !missing && detail && <>
-        {fixture && <p className="mb-5 rounded-xl border border-border bg-muted px-5 py-4 text-sm" role="status">Это синтетические тестовые данные. Цены и новости не отражают реальные события рынка.</p>}
+        {fixture && <p className="mb-6 rounded-xl border border-border bg-muted/40 px-4 py-3 text-xs" role="status">FIXTURE · Синтетические тестовые данные. Цены и новости не отражают реальные события рынка.</p>}
         <div className="grid min-w-0 gap-5 lg:grid-cols-2">
           <section aria-labelledby="price-heading" className="min-w-0 [overflow-wrap:anywhere]">
             <Card className="h-full min-w-0">
-              <CardHeader><CardTitle><h2 id="price-heading" className="m-0 text-base">Цена и изменение</h2></CardTitle><CardDescription>Источник: {quote?.source === "fixture" ? "синтетическая фикстура" : quote?.source === "finnhub" ? "Finnhub" : "нет данных"}</CardDescription></CardHeader>
+              <CardHeader><span className="section-kicker">РЫНОЧНЫЕ ДАННЫЕ</span><CardTitle><h2 id="price-heading" className="m-0 text-base">Цена и изменение</h2></CardTitle><CardDescription>Источник: {quote?.source === "fixture" ? "синтетическая фикстура" : quote?.source === "finnhub" ? "Finnhub" : "нет данных"}</CardDescription></CardHeader>
               <CardContent>{quote ? <div>
-                <p className="text-3xl font-semibold">{money.format(quote.price)}</p>
-                <p className="mt-2 text-sm">Изменение: {quote.change === null ? "нет данных" : money.format(quote.change)}{quote.changePercent === null ? "" : ` (${number.format(quote.changePercent)} %)`}</p>
-                <p className="mt-4 text-xs text-muted-foreground">Время котировки: {formatTime(quote.observedAt)}. Получено приложением: {formatTime(quote.fetchedAt)}.</p>
+                <p className="text-4xl font-semibold tracking-tight text-foreground tabular-nums sm:text-5xl">{money.format(quote.price)}</p>
+                <p className={`mt-3 inline-flex max-w-full rounded-lg px-2.5 py-1.5 text-sm tabular-nums ${quote.change === null || quote.change === 0 ? "bg-muted text-muted-foreground" : quote.change > 0 ? "bg-emerald-400/10 text-emerald-300" : "bg-rose-400/10 text-rose-300"}`}>Изменение: {quote.change === null ? "нет данных" : money.format(quote.change)}{quote.changePercent === null ? "" : ` (${number.format(quote.changePercent)} %)`}</p>
+                <dl className="mt-6 grid gap-2 border-t border-border pt-4 text-xs text-muted-foreground"><div className="flex flex-wrap justify-between gap-x-3 gap-y-1"><dt>Время котировки</dt><dd>{formatTime(quote.observedAt)}</dd></div><div className="flex flex-wrap justify-between gap-x-3 gap-y-1"><dt>Получено приложением</dt><dd>{formatTime(quote.fetchedAt)}</dd></div></dl>
               </div> : stateFor(detail.quote, "Котировка")}</CardContent>
             </Card>
           </section>
           <section aria-labelledby="company-heading" className="min-w-0 [overflow-wrap:anywhere]">
             <Card className="h-full min-w-0">
-              <CardHeader><CardTitle><h2 id="company-heading" className="m-0 text-base">О компании</h2></CardTitle><CardDescription>Источник: {company?.source === "fixture" ? "синтетическая фикстура" : company?.source === "finnhub" ? "Finnhub" : "нет данных"}</CardDescription></CardHeader>
-              <CardContent>{company ? <div className="space-y-2 text-sm">
-                <p>Биржа: {company.exchange ?? "нет данных"}</p><p>Отрасль: {company.industry ?? "нет данных"}</p>
-                <p>Капитализация: {company.marketCapitalization === null ? "нет данных" : money.format(company.marketCapitalization)}</p>
-                {company.source !== "fixture" && company.website && safeUrl(company.website) && <a href={safeUrl(company.website)!} target="_blank" rel="noopener noreferrer" className="inline-block underline underline-offset-2">Сайт компании</a>}
+              <CardHeader><CardTitle><h2 id="company-heading" className="m-0 flex items-center gap-2 text-base"><Building2 aria-hidden="true" className="size-4 text-accent-foreground" />О компании</h2></CardTitle><CardDescription>Источник: {company?.source === "fixture" ? "синтетическая фикстура" : company?.source === "finnhub" ? "Finnhub" : "нет данных"}</CardDescription></CardHeader>
+              <CardContent>{company ? <div className="text-sm">
+                <dl className="grid gap-4"><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-3"><dt className="text-muted-foreground">Биржа</dt><dd className="font-medium text-foreground">{company.exchange ?? "нет данных"}</dd></div><div className="flex flex-wrap justify-between gap-2 border-b border-border pb-3"><dt className="text-muted-foreground">Отрасль</dt><dd className="font-medium text-foreground">{company.industry ?? "нет данных"}</dd></div><div className="flex flex-wrap justify-between gap-2"><dt className="text-muted-foreground">Капитализация</dt><dd className="font-medium text-foreground tabular-nums">{company.marketCapitalization === null ? "нет данных" : money.format(company.marketCapitalization)}</dd></div></dl>
+                {company.source !== "fixture" && company.website && safeUrl(company.website) && <a href={safeUrl(company.website)!} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex items-center gap-1 text-accent-foreground underline underline-offset-4">Сайт компании<ArrowUpRight aria-hidden="true" className="size-3.5" /></a>}
               </div> : stateFor(detail.company, "Данные компании")}</CardContent>
             </Card>
           </section>
           <section aria-labelledby="chart-heading" className="min-w-0 lg:col-span-2">
             <Card className="min-w-0">
-              <CardHeader><CardTitle><h2 id="chart-heading" className="m-0 text-base">График акции</h2></CardTitle><CardDescription>Отдельный внешний источник: TradingView</CardDescription></CardHeader>
+              <CardHeader><CardTitle><h2 id="chart-heading" className="m-0 flex items-center gap-2 text-base"><ChartNoAxesCombined aria-hidden="true" className="size-4 text-accent-foreground" />График акции</h2></CardTitle><CardDescription>Отдельный внешний источник: TradingView</CardDescription></CardHeader>
               <CardContent className="min-w-0">{company
                 ? <TradingViewStockChart symbol={company.symbol} exchange={company.exchange} source={company.source} />
                 : <p role="status" className="text-sm">Для графика нужны данные компании и её биржа. Попробуйте обновить страницу позже.</p>}</CardContent>
@@ -189,7 +189,7 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
           </section>
           <section aria-labelledby="news-heading" className="min-w-0 [overflow-wrap:anywhere] lg:col-span-2">
             <Card>
-              <CardHeader><CardTitle><h2 id="news-heading" className="m-0 text-base">Новости</h2></CardTitle><CardDescription>{news === null ? "Источник новостей: нет данных" : `Публикации из ${fixture ? "синтетической фикстуры" : "серверного источника Finnhub"}`}</CardDescription></CardHeader>
+              <CardHeader><CardTitle><h2 id="news-heading" className="m-0 flex items-center gap-2 text-base"><Newspaper aria-hidden="true" className="size-4 text-accent-foreground" />Новости</h2></CardTitle><CardDescription>{news === null ? "Источник новостей: нет данных" : `Публикации из ${fixture ? "синтетической фикстуры" : "серверного источника Finnhub"}`}</CardDescription></CardHeader>
               <CardContent>{news === null ? stateFor(detail.news, "Новости") : news.length === 0 ? <MarketEmptyState kind="empty" title="Новостей нет" description="За доступный период источник не вернул публикаций." /> : <ul>{news.map((item) => <li key={item.id} className="border-b border-border py-3 last:border-b-0">
                 <p className="break-words font-semibold">{!fixture && safeUrl(item.url) ? <a href={safeUrl(item.url)!} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{item.headline}</a> : item.headline}</p>
                 {item.summary && <p className="mt-1 text-sm text-muted-foreground">{item.summary}</p>}
@@ -198,7 +198,7 @@ function StockDetailForSymbol({ symbol }: { symbol: string }) {
             </Card>
           </section>
         </div>
-        <section className="mt-5" aria-labelledby="watchlist-heading"><Card><CardHeader><CardTitle><h2 id="watchlist-heading" className="m-0 text-base">Мой список</h2></CardTitle></CardHeader><CardContent className="flex flex-wrap items-center gap-3">
+        <section className="mt-5" aria-labelledby="watchlist-heading"><Card><CardHeader><CardTitle><h2 id="watchlist-heading" className="m-0 flex items-center gap-2 text-base"><Bookmark aria-hidden="true" className="size-4 text-accent-foreground" />Мой список</h2></CardTitle></CardHeader><CardContent className="flex flex-wrap items-center gap-3">
           {watchlist.status === "ready" && <button type="button" className="button button-primary" disabled={watchlistPending} aria-busy={watchlistPending} aria-describedby="stock-watchlist-feedback" onClick={(event) => void changeWatchlist(event.currentTarget)}>{watchlistPending ? "Сохраняем…" : watchlist.included ? "Убрать из списка" : "Добавить в список"}</button>}
           {watchlist.status === "loading" && <p role="status" className="text-sm">Проверяем список…</p>}
           {watchlist.status === "unauthenticated" && <Link className="button button-primary" href="/login">Войти, чтобы управлять списком</Link>}

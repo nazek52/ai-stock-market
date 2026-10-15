@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CalendarClock, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 import {
   digestPreferenceUpdateSchema,
@@ -13,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-const fieldClass = "mt-2 min-h-11 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
+const fieldClass = "mt-2 min-h-12 min-w-0 max-w-full w-full rounded-xl border border-input bg-background px-3.5 py-3 text-sm transition-[border-color,box-shadow] duration-200 text-foreground focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive";
 const timezones = ["UTC", "Asia/Qyzylorda", "Asia/Almaty", "Europe/Moscow", "Europe/London", "America/New_York"];
 type Notice = { kind: "success" | "error"; text: string; login?: boolean } | null;
 type FieldErrors = Record<string, string | undefined>;
@@ -94,6 +95,10 @@ type ProfileValues = {
   preferredSector: string;
   timezone: string;
 };
+
+function SettingsSkeleton({ label }: { label: string }) {
+  return <div role="status" className="grid gap-5"><p className="text-sm text-muted-foreground">{label}</p><div aria-hidden="true" className="grid gap-4 sm:grid-cols-2"><div className="skeleton h-12 rounded-xl" /><div className="skeleton h-12 rounded-xl" /><div className="skeleton h-12 rounded-xl" /><div className="skeleton h-12 rounded-xl" /></div></div>;
+}
 
 function ProfileForm() {
   const [values, setValues] = useState<ProfileValues>({ countryCode: "", investmentGoal: "", riskTolerance: "", preferredSector: "", timezone: "UTC" });
@@ -188,13 +193,16 @@ function ProfileForm() {
   }
 
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle><h2 id="profile-form-title" className="m-0 text-lg">Профиль</h2></CardTitle>
-        <CardDescription>Страна, цель, риск и интересующая отрасль.</CardDescription>
+    <Card className="motion-enter min-w-0">
+      <CardHeader className="gap-4 border-b border-border pb-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-accent-foreground" aria-hidden="true"><UserRound size={20} strokeWidth={1.6} /></span>
+          <div className="min-w-0"><p className="mb-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">Личная информация</p><CardTitle><h2 id="profile-form-title" className="m-0 text-lg">Ваш профиль</h2></CardTitle></div>
+        </div>
+        <CardDescription>Ваши интересы и предпочтения для работы с рынком.</CardDescription>
       </CardHeader>
-      <CardContent>
-        {loadState === "loading" ? <p role="status">Загружаем профиль…</p> : loadState === "error" ? (
+      <CardContent className="pt-2">
+        {loadState === "loading" ? <SettingsSkeleton label="Загружаем профиль…" /> : loadState === "error" ? (
           <Status notice={notice} statusRef={statusRef} retry={() => { focusAfterRetry.current = true; setLoadState("loading"); setRetryToken((value) => value + 1); }} />
         ) : (
           <form ref={formRef} onSubmit={save} noValidate aria-busy={saving} aria-labelledby="profile-form-title" className="grid min-w-0 gap-5">
@@ -251,7 +259,7 @@ function ProfileForm() {
               <p id="profile-timezone-help" className="mt-1 text-xs">Название часового пояса IANA, например Asia/Qyzylorda.</p>
               {errors.timezone && <p id="profile-timezone-error" className="mt-1 text-sm text-destructive">Укажите действующий часовой пояс IANA.</p>}
             </div>
-            <Button type="submit" disabled={saving} className="w-fit">{saving ? "Сохраняем…" : "Сохранить профиль"}</Button>
+            <div className="border-t border-border pt-5"><Button type="submit" disabled={saving} className="w-full sm:w-fit">{saving ? "Сохраняем…" : "Сохранить профиль"}</Button></div>
             <Status notice={notice} statusRef={statusRef} />
           </form>
         )}
@@ -329,13 +337,16 @@ function DigestForm() {
   }
 
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <CardTitle><h2 id="digest-form-title" className="m-0 text-lg">Ежедневная сводка</h2></CardTitle>
-        <CardDescription>Управляйте согласием на email, местным временем и часовым поясом рассылки.</CardDescription>
+    <Card className="motion-enter min-w-0">
+      <CardHeader className="gap-4 border-b border-border pb-5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-accent-foreground" aria-hidden="true"><CalendarClock size={20} strokeWidth={1.6} /></span>
+          <div className="min-w-0"><p className="mb-1 text-xs font-medium uppercase tracking-widest text-muted-foreground">Письма и расписание</p><CardTitle><h2 id="digest-form-title" className="m-0 text-lg">Ежедневная сводка</h2></CardTitle></div>
+        </div>
+        <CardDescription>Выберите местное время и управляйте согласием на письма.</CardDescription>
       </CardHeader>
-      <CardContent>
-        {loadState === "loading" ? <p role="status">Загружаем настройки рассылки…</p> : loadState === "error" ? (
+      <CardContent className="pt-2">
+        {loadState === "loading" ? <SettingsSkeleton label="Загружаем настройки рассылки…" /> : loadState === "error" ? (
           <Status notice={notice} statusRef={statusRef} retry={() => { focusAfterRetry.current = true; setLoadState("loading"); setRetryToken((value) => value + 1); }} />
         ) : (
           <form ref={formRef} onSubmit={save} noValidate aria-busy={saving} aria-labelledby="digest-form-title" className="grid min-w-0 gap-5">
@@ -354,14 +365,14 @@ function DigestForm() {
                 {errors.localTime && <p id="digest-time-error" className="mt-1 text-sm text-destructive">Укажите время в формате ЧЧ:ММ.</p>}
               </div>
             </div>
-            <div className="flex items-start gap-3 rounded-lg border border-border bg-background p-4">
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/40 p-4">
               <input disabled={saving} id="digest-consent" name="enabled" className="mt-1 size-4 shrink-0 accent-primary" type="checkbox" checked={values.enabled} onChange={(event) => { setValues((current) => ({ ...current, enabled: event.target.checked })); setNotice(null); }} aria-describedby="digest-consent-help" />
               <div>
                 <label htmlFor="digest-consent" className="text-sm font-medium">Хочу получать ежедневную сводку по email</label>
                 <p id="digest-consent-help" className="mt-1 text-xs">Изменение начнёт действовать после сохранения. Вы можете отключить письма здесь же.</p>
               </div>
             </div>
-            <Button type="submit" disabled={saving} className="w-fit">{saving ? "Сохраняем…" : "Сохранить рассылку"}</Button>
+            <div className="border-t border-border pt-5"><Button type="submit" disabled={saving} className="w-full sm:w-fit">{saving ? "Сохраняем…" : "Сохранить рассылку"}</Button></div>
             <Status notice={notice} statusRef={statusRef} />
           </form>
         )}
@@ -371,5 +382,5 @@ function DigestForm() {
 }
 
 export function ProfileSettingsPreview() {
-  return <div className="grid min-w-0 w-full max-w-4xl gap-5"><ProfileForm /><DigestForm /></div>;
+  return <div className="grid min-w-0 w-full items-start gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]"><ProfileForm /><DigestForm /></div>;
 }

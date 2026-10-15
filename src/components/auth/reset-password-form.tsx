@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useRef, useState, type FormEvent } from "react";
+import { AuthFrame } from "@/components/auth/auth-frame";
 import { authClient } from "@/components/auth/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,34 +61,31 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <>
-      <a className="skip-link" href="#main">Перейти к содержимому</a>
-      <main id="main" tabIndex={-1} className="mx-auto flex min-h-screen min-w-0 w-full max-w-lg flex-col justify-center gap-6 px-4 py-12 sm:px-6">
-        <Link href="/login" className="w-fit text-sm font-semibold text-primary hover:underline">← К входу</Link>
-        <Card className="min-w-0 py-8 sm:py-10">
-          <CardHeader className="px-6 sm:px-8"><CardTitle><h1 id="reset-password-title" className="text-3xl">Сменить пароль</h1></CardTitle></CardHeader>
-          <CardContent className="px-6 sm:px-8">
+    <AuthFrame variant="reset">
+        <Card className="min-w-0 py-7 sm:py-8">
+          <CardHeader className="gap-3 px-5 sm:px-7"><span className="auth-kicker">Безопасность аккаунта</span><CardTitle><h1 id="reset-password-title" className="text-3xl">Сменить пароль</h1></CardTitle></CardHeader>
+          <CardContent className="px-5 sm:px-7">
             {complete ? (
               <div ref={completionRef} tabIndex={-1} role="status" className="grid gap-4">
                 <p>Пароль изменён. Прежние сессии отозваны. Войдите с новым паролем.</p>
-                <Link href="/login" className="w-fit font-semibold text-primary underline">Войти</Link>
+                <Link href="/login" className="w-fit font-semibold text-accent-foreground underline">Войти</Link>
               </div>
             ) : linkError || !token ? (
               <div role="alert" className="grid gap-4">
                 <p>Ссылка недействительна или устарела. Запросите новую ссылку на странице входа.</p>
-                <Link href="/login" className="w-fit font-semibold text-primary underline">Перейти к входу</Link>
+                <Link href="/login" className="w-fit font-semibold text-accent-foreground underline">Перейти к входу</Link>
               </div>
             ) : (
               <form noValidate onSubmit={submit} aria-busy={pending} aria-labelledby="reset-password-title" className="grid min-w-0 gap-4">
                 <p>Введите новый пароль длиной от 12 до 128 символов.</p>
                 <div>
                   <label htmlFor="new-password" className="text-sm font-medium">Новый пароль</label>
-                  <input disabled={pending} id="new-password" ref={passwordRef} type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(""); }} aria-invalid={!!passwordError} aria-describedby={passwordError ? "new-password-error" : undefined} className="mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
+                  <input disabled={pending} id="new-password" ref={passwordRef} type="password" autoComplete="new-password" minLength={12} maxLength={128} required value={password} onChange={(event) => { setPassword(event.target.value); setPasswordError(""); }} aria-invalid={!!passwordError} aria-describedby={passwordError ? "new-password-error" : undefined} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-xl border border-input bg-background px-3.5 py-3 text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
                   {passwordError && <p id="new-password-error" className="mt-1 text-sm text-destructive">{passwordError}</p>}
                 </div>
                 <div>
                   <label htmlFor="confirm-new-password" className="text-sm font-medium">Повторите пароль</label>
-                  <input disabled={pending} id="confirm-new-password" ref={confirmationRef} type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setConfirmationError(""); }} aria-invalid={!!confirmationError} aria-describedby={confirmationError ? "confirm-new-password-error" : undefined} className="mt-1.5 min-w-0 max-w-full w-full rounded-lg border border-input bg-background px-3 py-2 text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
+                  <input disabled={pending} id="confirm-new-password" ref={confirmationRef} type="password" autoComplete="new-password" required value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setConfirmationError(""); }} aria-invalid={!!confirmationError} aria-describedby={confirmationError ? "confirm-new-password-error" : undefined} className="mt-2 min-h-12 min-w-0 max-w-full w-full rounded-xl border border-input bg-background px-3.5 py-3 text-foreground transition-[border-color,box-shadow] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring aria-invalid:border-destructive" />
                   {confirmationError && <p id="confirm-new-password-error" className="mt-1 text-sm text-destructive">{confirmationError}</p>}
                 </div>
                 <Button type="submit" disabled={pending} className="w-fit">{pending ? "Сохраняем…" : "Сменить пароль"}</Button>
@@ -96,7 +94,6 @@ export function ResetPasswordForm() {
             )}
           </CardContent>
         </Card>
-      </main>
-    </>
+    </AuthFrame>
   );
 }

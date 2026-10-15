@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Mail } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,8 +73,8 @@ export function DigestScenario() {
     return "Результат SMTP не определён. Автоматической повторной отправки нет; проверьте Mailpit и локальный журнал.";
   }
 
-  return <Card className="min-w-0 max-w-3xl [overflow-wrap:anywhere]">
-    <CardHeader><CardTitle><h2 className="m-0 text-lg">Ежедневная сводка в Mailpit</h2></CardTitle>
+  return <Card className="min-w-0 h-full [overflow-wrap:anywhere]">
+    <CardHeader><div className="widget-heading"><span className="widget-icon"><Mail size={17} strokeWidth={1.6} aria-hidden="true" /></span><CardTitle><h2 className="m-0 text-base">Ежедневная сводка в Mailpit</h2></CardTitle></div>
       <CardDescription>Синтетические новости и детерминированная сводка без обращения к LLM. Один выпуск на вашу локальную дату; повтор не создаёт второго письма. Глобальное расписание остаётся выключенным.</CardDescription>
     </CardHeader>
     <CardContent className="grid min-w-0 gap-4">

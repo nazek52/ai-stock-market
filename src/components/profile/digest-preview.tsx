@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Eye } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,10 +63,10 @@ export function DigestPreview() {
   }
 
   return (
-    <Card className="min-w-0 max-w-4xl">
-      <CardHeader>
-        <CardTitle><h2 className="m-0 text-lg">Проверка ежедневной сводки</h2></CardTitle>
-        <CardDescription>Только для локальной разработки. Сначала сохраните согласие на рассылку выше. Кнопка создаёт предпросмотр для вашего аккаунта без отправки письма. Лимит: 3 попытки за 5 минут.</CardDescription>
+    <Card className="motion-enter min-w-0">
+      <CardHeader className="gap-3">
+        <div className="flex items-center gap-3"><span className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-border bg-muted text-accent-foreground" aria-hidden="true"><Eye size={20} strokeWidth={1.6} /></span><CardTitle><h2 className="m-0 text-lg">Предпросмотр сводки</h2></CardTitle></div>
+        <CardDescription>Посмотрите письмо до отправки. Сначала сохраните согласие на рассылку выше. Предпросмотр ничего не отправляет; доступен в локальной разработке. Лимит: 3 попытки за 5 минут.</CardDescription>
       </CardHeader>
       <CardContent className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
         <Button type="button" className="w-fit" onClick={() => void preview()} disabled={state.kind === "pending"}>

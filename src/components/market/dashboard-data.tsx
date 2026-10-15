@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ArrowUpRight, Clock3, Newspaper } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ApiError, ApiResult, StockNewsItem, StockQuote } from "@/contracts";
 import { Button } from "@/components/ui/button";
@@ -84,31 +85,21 @@ function QuoteRow({ symbol }: { symbol: DashboardSymbol }) {
   }, [symbol, retry]);
 
   return (
-    <li ref={rowRef} tabIndex={-1} className="border-b border-border py-4 last:border-0">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <Link href={`/stocks/${symbol}`} className="font-semibold text-primary underline-offset-4 hover:underline">{symbol}</Link>
-        {state.status === "ready" && <span className="font-semibold tabular-nums text-foreground">{new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 }).format(state.quote.price)} {state.quote.currency}</span>}
-      </div>
-      {state.status === "loading" && <p role="status" className="mt-2 text-sm text-muted-foreground">Загружаем котировку {symbol}…</p>}
-      {state.status === "error" && <div className="mt-2"><DataError error={state.error} subject={`котировка ${symbol}`} retry={() => { restoreFocus.current = true; setState({ status: "loading" }); setRetry((value) => value + 1); }} /></div>}
-      {state.status === "ready" && (
-        <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
-          <p>Источник: {state.quote.source === "fixture" ? "синтетические данные (fixture)" : "Finnhub"}.</p>
-          <p>Время котировки по источнику: {formatTime(state.quote.observedAt)}.</p>
-        </div>
-      )}
+    <li ref={rowRef} tabIndex={-1} className="quote-tile">
+      <div className="quote-tile-head"><Link href={`/stocks/${symbol}`} className="quote-symbol inline-flex items-center gap-3 hover:text-primary"><span className="symbol-avatar !size-8 !rounded-lg !text-[10px]" aria-hidden="true">{symbol.slice(0,2)}</span>{symbol}</Link><Link className="quote-arrow" href={`/stocks/${symbol}`} aria-label={`Открыть ${symbol}`}><ArrowUpRight size={14} aria-hidden="true" /></Link></div>
+      {state.status === "ready" && <span className="quote-price">{new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(state.quote.price)}<span className="quote-currency">{state.quote.currency}</span></span>}
+      {state.status === "loading" && <div className="mt-5 grid gap-3"><p role="status" className="sr-only">Загружаем котировку {symbol}…</p><span aria-hidden="true" className="skeleton h-9 w-32 max-w-full" /><span aria-hidden="true" className="skeleton h-3 w-40 max-w-full" /></div>}
+      {state.status === "error" && <div className="mt-4"><DataError error={state.error} subject={`котировка ${symbol}`} retry={() => { restoreFocus.current = true; setState({ status: "loading" }); setRetry((value) => value + 1); }} /></div>}
+      {state.status === "ready" && <div className="quote-source"><p>{state.quote.source === "fixture" ? "Синтетические данные · fixture" : "Источник: Finnhub"}</p><p className="inline-flex items-start gap-1.5"><Clock3 size={11} className="mt-0.5 shrink-0" aria-hidden="true" /><span>По источнику: {formatTime(state.quote.observedAt)}</span></p></div>}
     </li>
   );
 }
 
 export function DashboardQuotes() {
   return (
-    <div>
-      <p className="text-sm text-muted-foreground">Котировки AAPL, MSFT и NVDA загружаются отдельно. Источник и время указаны для каждой цены.</p>
-      <ul className="mt-2">
-        {DASHBOARD_SYMBOLS.map((symbol) => <QuoteRow key={symbol} symbol={symbol} />)}
-      </ul>
-    </div>
+    <ul className="quotes-grid">
+      {DASHBOARD_SYMBOLS.map((symbol) => <QuoteRow key={symbol} symbol={symbol} />)}
+    </ul>
   );
 }
 
@@ -150,7 +141,7 @@ export function DashboardNews() {
 
   return (
     <div ref={newsRef} tabIndex={-1}>
-      {state.status === "loading" && <p role="status" className="text-sm text-muted-foreground">Загружаем новости AAPL…</p>}
+      {state.status === "loading" && <div className="grid gap-3"><p role="status" className="sr-only">Загружаем новости AAPL…</p><span aria-hidden="true" className="skeleton h-4 w-3/4" /><span aria-hidden="true" className="skeleton h-3 w-full" /><span aria-hidden="true" className="skeleton h-3 w-2/3" /></div>}
       {state.status === "error" && <DataError error={state.error} subject="новости AAPL" retry={() => { restoreFocus.current = true; setState({ status: "loading" }); setRetry((value) => value + 1); }} />}
       {state.status === "ready" && (
         <>
@@ -164,10 +155,11 @@ export function DashboardNews() {
               {state.news.map((item) => {
                 const url = state.mode === "fixture" ? null : safeNewsUrl(item.url);
                 return (
-                  <li key={item.id} className="rounded-lg border border-border p-3">
+                  <li key={item.id} className="data-row rounded-xl border border-border bg-background/40 p-4">
+                    <span className="news-source mb-3"><Newspaper size={12} aria-hidden="true" />{item.source}</span>
                     {url
-                      ? <a href={url} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary underline-offset-4 hover:underline">{item.headline}</a>
-                      : <span className="font-semibold text-foreground">{item.headline}</span>}
+                      ? <a href={url} target="_blank" rel="noopener noreferrer" className="block text-sm font-medium leading-relaxed text-primary underline-offset-4 hover:underline">{item.headline}</a>
+                      : <span className="block text-sm font-medium leading-relaxed text-foreground">{item.headline}</span>}
                     <p className="mt-1 text-xs text-muted-foreground">{state.mode === "fixture" ? "Синтетика · " : ""}{item.source} · {formatTime(item.publishedAt)}</p>
                     {!url && state.mode !== "fixture" && <p className="mt-1 text-xs text-muted-foreground">Ссылка на публикацию недоступна.</p>}
                   </li>

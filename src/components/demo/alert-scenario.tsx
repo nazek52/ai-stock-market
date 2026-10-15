@@ -1,5 +1,7 @@
 "use client";
 
+import { BellRing } from "lucide-react";
+
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,9 +51,9 @@ export function AlertScenario() {
     } finally { setPending(false); }
   }
 
-  return <Card className="min-w-0 max-w-3xl [overflow-wrap:anywhere]">
+  return <Card className="min-w-0 h-full [overflow-wrap:anywhere]">
     <CardHeader>
-      <CardTitle><h2 className="m-0 text-lg">Синтетическое пересечение порога</h2></CardTitle>
+      <div className="widget-heading"><span className="widget-icon"><BellRing size={17} strokeWidth={1.6} aria-hidden="true" /></span><CardTitle><h2 className="m-0 text-base">Синтетическое пересечение порога</h2></CardTitle></div>
       <CardDescription>Только локальная демонстрация: временное правило AAPL «выше 100 USD», наблюдение 99 → 101 USD и одно письмо в Mailpit. Эти цены вымышлены. Ваши существующие правила не изменяются.</CardDescription>
     </CardHeader>
     <CardContent className="grid min-w-0 gap-4">
