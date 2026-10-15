@@ -122,7 +122,7 @@ export function AlertRules({ pollSeconds, scheduleEnabled, marketMode }: { pollS
     setErrors({});
   }
 
-  async function mutate<T>(action: () => Promise<T>, success: string, confirmed: (result: T, rules: PriceAlertRule[]) => boolean): Promise<boolean> {
+  async function mutate<T>(action: () => Promise<T>, success: string, confirmed: (result: T, rules: PriceAlertRule[]) => boolean, creating = false): Promise<boolean> {
     let accepted = false;
     try {
       const result = await action();
@@ -133,11 +133,16 @@ export function AlertRules({ pollSeconds, scheduleEnabled, marketMode }: { pollS
       setNotice({ kind: "success", text: success });
       return true;
     } catch (error) {
-      if (accepted) {
+      if (accepted || !(error instanceof ApiFailure)) {
         setList({ state: "error", error });
-        setNotice({ kind: "error", text: "Изменение принято, но текущее состояние не подтверждено. Обновите список." });
+        setNotice({ kind: "error", text: accepted ? "Изменение принято, но текущее состояние не подтверждено. Обновите список." : "Ответ на изменение не получен. Оно могло сохраниться: обновите список перед следующей попыткой." });
+        // Do not leave a create form ready to resubmit after an ambiguous response.
+        setEditing(null);
+        setForm(blank);
+        setConfirmDelete(null);
       } else {
-        setNotice(explain(error));
+        setNotice(creating && error.detail.code === "NOT_FOUND" ? { kind: "error", text: "Акция с таким тикером не найдена. Проверьте тикер через поиск." } : explain(error));
+        if (creating && error.detail.code === "NOT_FOUND") setErrors({ symbol: "Акция не найдена." });
         if (error instanceof ApiFailure && error.detail.code === "INVALID_INPUT") {
           setErrors(Object.fromEntries(Object.keys(error.detail.fields ?? {}).map((field) => [field, fieldError(field)])));
         }
@@ -172,6 +177,7 @@ export function AlertRules({ pollSeconds, scheduleEnabled, marketMode }: { pollS
       () => request<PriceAlertRule>(url, { method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(parsed.data) }),
       editing ? "Правило обновлено." : "Правило создано.",
       (result, rules) => typeof result.id === "string" && rules.some((rule) => rule.id === result.id && rule.type === parsed.data.type && rule.threshold === parsed.data.threshold && rule.cooldownMinutes === parsed.data.cooldownMinutes),
+      !editing,
     );
     if (succeeded) {
       setEditing(null);
@@ -200,7 +206,7 @@ export function AlertRules({ pollSeconds, scheduleEnabled, marketMode }: { pollS
     setNotice(null);
     const succeeded = await mutate(async () => {
       const result = await request<{ deleted: boolean }>(`/api/alerts/${encodeURIComponent(rule.id)}`, { method: "DELETE" });
-      if (result.deleted !== true) throw new Error("Alert deletion was not confirmed");
+      if (typeof result.deleted !== "boolean") throw new Error("Invalid alert deletion response");
       return result;
     }, `${rule.symbol}: правило удалено.`, (_result, rules) => !rules.some((item) => item.id === rule.id));
     if (succeeded) {

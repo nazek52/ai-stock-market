@@ -29,8 +29,8 @@ export default function Home() {
           <div className="grid min-w-0 gap-5 xl:grid-cols-2">
             <Card className="min-w-0">
               <CardHeader>
-                <CardTitle><h3>Обзор акций США</h3></CardTitle>
-                <CardDescription>Источник: TradingView</CardDescription>
+                <CardTitle><h3>Индексы рынка</h3></CardTitle>
+                <CardDescription>S&amp;P 500, Dow Jones, Nasdaq Composite · Источник: TradingView</CardDescription>
               </CardHeader>
               <CardContent className="min-w-0">
                 <TradingViewMarketOverview />

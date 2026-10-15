@@ -116,11 +116,10 @@ export function StockSearch() {
         }
         return;
       }
-      if (typeof payload.data !== "object" || payload.data === null ||
+      if (!response.ok || typeof payload.data !== "object" || payload.data === null ||
         (wasSaved ? !("deleted" in payload.data && typeof payload.data.deleted === "boolean")
           : !("symbol" in payload.data && payload.data.symbol === symbol))) {
-        setActionError({ symbol, message: "Сервер вернул неожиданный ответ. Обновите страницу перед повторной попыткой." });
-        return;
+        throw new Error("Unexpected watchlist mutation response");
       }
       setWatchlist((current) => {
         if (current.status !== "ready") return current;
@@ -130,7 +129,8 @@ export function StockSearch() {
         return { status: "ready", symbols };
       });
     } catch {
-      setActionError({ symbol, message: "Не удалось связаться с сервером. Список не изменён." });
+      setWatchlist({ status: "error" });
+      setActionError({ symbol, message: "Изменение могло сохраниться. Обновите страницу, чтобы проверить список перед следующей попыткой." });
     } finally {
       setPendingSymbol(null);
     }
@@ -203,7 +203,7 @@ export function StockSearch() {
                     <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-2 sm:gap-3">
                       <Link href={`/stocks/${encodeURIComponent(stock.symbol)}`} className="min-w-0 flex-1 rounded-lg p-2 transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
                         <span className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="text-base font-semibold text-foreground">{stock.symbol} <span className="text-sm font-normal text-muted-foreground">· {stock.companyName}</span></span>
+                          <span className="min-w-0 break-words text-base font-semibold text-foreground">{stock.symbol} <span className="text-sm font-normal text-muted-foreground">· {stock.companyName}</span></span>
                           <span className="text-xs font-medium text-muted-foreground">{stock.exchange ?? "Биржа не указана"} · Акция</span>
                         </span>
                         <span className="mt-2 block text-xs text-primary">Открыть карточку <span aria-hidden="true">→</span></span>
